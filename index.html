@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediCare Clinic - Appointment System</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <!-- Header remains the same -->
+    <header>
+        <div class="container">
+            <div class="logo">
+                <i class="fas fa-hospital-alt"></i>
+                <h1>MediCare Clinic</h1>
+            </div>
+            
+            <nav>
+             <ul>
+                <li><a href="#" class="active" id="home-link">Home</a></li>
+                <li><a href="#" id="book-link" class="nav-link">Book Appointment</a></li>
+                <li><a href="#" id="view-link" class="nav-link">My Appointments</a></li>
+                <li><a href="#" id="contact-link">Contact</a></li>
+             </ul>
+            </nav>
+
+            <div class="auth-buttons">
+                <button id="login-btn">Login</button>
+                <button id="register-btn">Register</button>
+            </div>
+
+                <div class="user-greeting" id="user-greeting" style="display: none;">
+                     Hi, <span id="username-display"></span>
+                    <button id="logout-btn">Logout</button>
+                </div>
+        </div>
+    </header>
+    <main>
+        <!-- New Admin Dashboard Section -->
+        <section id="admin-section">
+            <div class="dashboard-header">
+                <h2>Admin Dashboard</h2>
+                <div class="date-picker">
+                    <label for="dashboard-date">Select Date:</label>
+                    <input type="date" id="dashboard-date">
+                    <span id="selected-date-text">Today</span>
+                </div>
+            </div>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="total-appointments">0</h3>
+                    <p>Total Appointments</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="booked-appointments">0</h3>
+                    <p>Booked</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="completed-appointments">0</h3>
+                    <p>Completed</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="cancelled-appointments">0</h3>
+                    <p>Cancelled</p>
+                </div>
+            </div>
+
+            <div class="chart-container">
+                <canvas id="appointments-chart"></canvas>
+            </div>
+
+            <div class="appointments-table-container">
+                <h3>Appointments for <span id="selected-date-text">Today</span></h3>
+                <table class="appointments-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Patient</th>
+                            <th>Doctor</th>
+                            <th>Department</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="admin-appointments-list">
+                        <!-- Will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+
+        <!-- Home Section -->
+        <section id="home-section" class="active-section">
+            <div class="hero">
+                <div class="hero-content">
+                    <h2>Quality Healthcare Made Easy</h2>
+                    <p>Book appointments with our specialists from the comfort of your home.</p>
+                    <button id="hero-book-btn">Book an Appointment</button>
+                </div>
+                <div class="hero-image">
+                    <img src="https://images.unsplash.com/photo-1576091160550-2173dba999ef?ixlib=rb-1.2.1&auto=format&fit=crop&w=500&q=60" alt="Doctor with patient">
+                </div>
+            </div>
+
+            <div class="services">
+                <h3>Our Services</h3>
+                <div class="services-grid">
+                    <div class="service-card">
+                        <i class="fas fa-heartbeat"></i>
+                        <h4>Cardiology</h4>
+                        <p>Expert care for your heart health with our cardiology specialists.</p>
+                    </div>
+                    <div class="service-card">
+                        <i class="fas fa-brain"></i>
+                        <h4>Neurology</h4>
+                        <p>Comprehensive neurological evaluations and treatments.</p>
+                    </div>
+                    <div class="service-card">
+                        <i class="fas fa-brain"></i>
+                        <h4>Neurology</h4>
+                        <p>Comprehensive neurological evaluations and treatments.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="doctors">
+                <h3>Our Doctors</h3>
+              
+                <!-- Cardiology Department -->
+                <div class="department">
+                  <h4 class="department-title">Cardiology Department</h4>
+                  <div class="doctors-grid">
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=500&q=60" alt="Dr. Sarah Johnson">
+                      <h4>Dr. Sarah Johnson</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=500&q=60" alt="Dr. John Smith">
+                      <h4>Dr. John Smith</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                  </div>
+                </div>
+              
+                <!-- Neurology Department -->
+                <div class="department">
+                  <h4 class="department-title">Neurology Department</h4>
+                  <div class="doctors-grid">
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=500&q=60" alt="Dr. Michael Chen">
+                      <h4>Dr. Michael Chen</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1622253692010-333f2da6031d?auto=format&fit=crop&w=500&q=60" alt="Dr. Alice Kim">
+                      <h4>Dr. Alice Kim</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                  </div>
+                </div>
+              
+                <div class="department">
+                  <h4 class="department-title">General Medicine</h4>
+                  <div class="doctors-grid">
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=500&q=60" alt="Dr. Emily Rodriguez">
+                      <h4>Dr. Emily Rodriguez</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                    <div class="doctor-card">
+                      <img src="https://images.unsplash.com/photo-1594824476967-48c8b964273f?auto=format&fit=crop&w=500&q=60" alt="Dr. James Lee">
+                      <h4>Dr. James Lee</h4>
+                      <p><strong>Schedule:</strong> [Insert Schedule]</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+        </section>
+
+        <!-- Book Appointment Section -->
+        <section id="book-section">
+            <h2>Book an Appointment</h2>
+            <div class="appointment-form">
+                <form id="booking-form">
+                    <div class="form-group">
+                        <label for="department">Department</label>
+                        <select id="department" required>
+                            <option value="">Select Department</option>
+                            <option value="cardiology">Cardiology</option>
+                            <option value="neurology">Neurology</option>
+                            <option value="general">General Medicine</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="doctor">Doctor</label>
+                        <select id="doctor" required disabled>
+                            <option value="">Select Doctor</option>
+                            <!-- Doctors will be populated via JavaScript -->
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="date">Appointment Date</label>
+                        <input type="date" id="date" required>
+                    </div>
+
+                 <!--
+<div class="form-group">
+  <label for="time">Preferred Time</label>
+  <input type="time" class="form-control" id="time" name="time">
+</div>
+-->
+
+                    <div class="form-group">
+                        <label for="name">Full Name</label>
+                        <input type="text" id="name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="phone">Phone Number</label>
+                        <input type="tel" id="phone" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="reason">Reason for Visit</label>
+                        <textarea id="reason" rows="3"></textarea>
+                    </div>
+
+                    <button type="submit" class="submit-btn">Book Appointment</button>
+                </form>
+                <div class="appointment-preview">
+                    <h3>Appointment Summary</h3>
+                    <div class="preview-content">
+                        <p><strong>Department:</strong> <span id="preview-dept">Not selected</span></p>
+                        <p><strong>Doctor:</strong> <span id="preview-doc">Not selected</span></p>
+                        <p><strong>Date:</strong> <span id="preview-date">Not selected</span></p>
+                        <p><strong>Patient:</strong> <span id="preview-name">Not provided</span></p>
+                        <p><strong>Email:</strong> <span id="preview-email">Not provided</span></p>
+                        <p><strong>Phone:</strong> <span id="preview-phone">Not provided</span></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- View Appointments Section -->
+        <section id="view-section">
+            <h2>My Appointments</h2>
+            <div class="appointments-container">
+                <div class="filter-options">
+                    <select id="filter-status">
+                        <option value="all">All Appointments</option>
+                        <option value="upcoming">Upcoming</option>
+                        <option value="completed">Completed</option>
+                        <option value="cancelled">Cancelled</option>
+                    </select>
+                    <button id="refresh-appointments">Refresh</button>
+                </div>
+                <div class="appointments-list" id="appointments-list">
+                    <!-- Appointments will be populated via JavaScript -->
+                    <div class="no-appointments">
+                        <i class="far fa-calendar-alt"></i>
+                        <p>No appointments found. Book your first appointment now!</p>
+                        <button id="book-from-view">Book Appointment</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Contact Section -->
+        <section id="contact-section">
+            <h2>Contact Us</h2>
+            <div class="contact-container">
+                <div class="contact-info">
+                    <div class="info-item">
+                        <i class="fas fa-map-marker-alt"></i>
+                        <div>
+                            <h4>Address</h4>
+                            <p>123 Medical Drive, Health City, HC 12345</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-phone-alt"></i>
+                        <div>
+                            <h4>Phone</h4>
+                            <p>(123) 456-7890</p>
+                            <p>Emergency: (123) 456-7891</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-envelope"></i>
+                        <div>
+                            <h4>Email</h4>
+                            <p>info@medicareclinic.com</p>
+                            <p>support@medicareclinic.com</p>
+                        </div>
+                    </div>
+                    <div class="info-item">
+                        <i class="fas fa-clock"></i>
+                        <div>
+                            <h4>Working Hours</h4>
+                            <p>Monday - Friday: 8:00 AM - 6:00 PM</p>
+                            <p>Saturday: 9:00 AM - 3:00 PM</p>
+                            <p>Sunday: Closed</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="contact-form">
+                    <form id="contact-form">
+                        <div class="form-group">
+                            <label for="contact-name">Name</label>
+                            <input type="text" id="contact-name" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-email">Email</label>
+                            <input type="email" id="contact-email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-subject">Subject</label>
+                            <input type="text" id="contact-subject" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="contact-message">Message</label>
+                            <textarea id="contact-message" rows="5" required></textarea>
+                        </div>
+                        <button type="submit" class="submit-btn">Send Message</button>
+                    </form>
+                </div>
+            </div>
+        </section>
+    </main>
+
+     <!-- Updated Login Modal -->
+<div class="modal" id="login-modal">
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Login to Your Account</h2>
+        <form id="login-form">
+            <div class="form-group">
+                <label for="login-email">Email</label>
+                <input type="email" id="login-email" placeholder="Enter your email" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit" class="submit-btn">Login</button>
+        </form>
+        <div class="form-footer">
+            <p>Don't have an account? <a href="#" id="register-from-login">Register</a></p>
+        </div>
+    </div>
+</div>
+
+   <!-- Registration Modal -->
+<div class="modal" id="register-modal">
+    <div class="form-group" id="admin-pin-group" style="display: none;">
+    <label for="reg-pin">Admin PIN</label>
+    <input type="password" id="reg-pin" name="adminPin" placeholder="Enter admin PIN">
+    </div>
+    <div class="modal-content">
+        <span class="close-modal">&times;</span>
+        <h2>Create an Account</h2>
+        <form id="register-form">
+            <div class="form-group">
+                <label for="reg-name">Full Name</label>
+                <input type="text" id="reg-name" name="fullName" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-email">Email</label>
+                <input type="email" id="reg-email" name="email" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-phone">Phone Number</label>
+                <input type="tel" id="reg-phone" name="phone" required>
+            </div>
+            <div class="form-group">
+                <label for="reg-password">Password</label>
+                <input type="password" id="reg-password" name="password" required>
+            </div>
+            <div class="form-group">
+                <label>
+                    <input type="checkbox" id="agree-terms" required> I agree to the <a href="#">Terms and Conditions</a>
+                </label>
+            </div>
+            <button type="submit" class="submit-btn">Register</button>
+            <div class="form-footer">
+                <p>Already have an account? <a href="#" id="login-from-register">Login</a></p>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+<script>
+document.getElementById('reg-email').addEventListener('input', function() {
+    const email = this.value;
+    const adminPinGroup = document.getElementById('admin-pin-group');
+    if (email.endsWith('@wecare.com')) {
+        adminPinGroup.style.display = 'block';
+    } else {
+        adminPinGroup.style.display = 'none';
+    }
+});
+</script>
+
+
+    <!-- Appointment Confirmation Modal -->
+    <div class="modal" id="confirmation-modal">
+        <div class="modal-content">
+            <span class="close-modal">&times;</span>
+            <div class="confirmation-content">
+                <div class="confirmation-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <h2>Appointment Booked Successfully!</h2>
+                <div class="confirmation-details">
+                    <p><strong>Appointment ID:</strong> <span id="confirm-id">MC-2023-001</span></p>
+                    <p><strong>Doctor:</strong> <span id="confirm-doctor">Dr. Sarah Johnson</span></p>
+                    <p><strong>Date:</strong> <span id="confirm-date">June 15, 2023</span></p>
+                    <p><strong>Time:</strong> <span id="confirm-time">10:30 AM</span></p>
+                </div>
+                <p class="confirmation-message">
+                    You will receive a confirmation email with all the details. 
+                    Please arrive 15 minutes before your scheduled time.
+                </p>
+                <div class="confirmation-actions">
+                    <button id="print-appointment">Print</button>
+                    <button id="view-appointments">View My Appointments</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-section">
+                    <h3>About MediCare</h3>
+                    <p>Providing quality healthcare services with compassion and excellence since 2005.</p>
+                </div>
+        
+                <div class="footer-section">
+                    <h3>Contact Info</h3>
+                    <p><i class="fas fa-map-marker-alt"></i> 123 Medical Drive, Health City</p>
+                    <p><i class="fas fa-phone-alt"></i> (123) 456-7890</p>
+                    <p><i class="fas fa-envelope"></i> info@medicareclinic.com</p>
+                </div>
+                <div class="footer-section">
+                    <h3>Follow Us</h3>
+                    <div class="social-links">
+                        <a href="#"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#"><i class="fab fa-twitter"></i></a>
+                        <a href="#"><i class="fab fa-instagram"></i></a>
+                        <a href="#"><i class="fab fa-linkedin-in"></i></a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2025 MediCare Clinic. All Rights Reserved.</p>
+                <div class="footer-links">
+                    <a href="#">Privacy Policy</a>
+                    <a href="#">Terms of Service</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+     <script type="module" src="script.js"></script>
+    <script src="admin.js"></script> 
+
+</body>
+</html>
