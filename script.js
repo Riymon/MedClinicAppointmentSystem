@@ -1,4 +1,6 @@
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm';
+import Appointments from './appointments.js';
+import User from './users.js';
 const supabaseUrl = 'https://caeytkufykvjrfizvqcc.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZXl0a3VmeWt2anJmaXp2cWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0NTQ2NzYsImV4cCI6MjA2NTAzMDY3Nn0.bKHsVqCkmnH-CtX1HlcsxO6fCcUjLboMx4xRqXRsxgg'; // Replace with your actual public key
 const supabase = createClient(supabaseUrl, supabaseKey);
@@ -36,9 +38,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const printAppointmentBtn = document.getElementById('print-appointment');
     const viewAppointmentsBtn = document.getElementById('view-appointments');
     const patientLoginBtn = document.getElementById('patient-login-btn');
-    const adminLoginBtn = document.getElementById('admin-login-btn');
-    const loginLabel = document.getElementById('login-label');
-    const sampleUser = {username: 'user@email.com', password: 'password123'};
     const adminUser = [{username: 'user@wecare.com', password: 'password123'},
     {username: 'user1@wecare.com', password: 'password123'}];
     const nav = document.querySelector('nav ul');
@@ -53,10 +52,6 @@ function showNavLinks() {
 // Hide nav links initially
   navLinks.forEach(link => link.style.display = 'none');
 
-
-
-    
-
     // Admin functionality
     let appointmentsChart = null;
     const adminCredentials = {
@@ -70,16 +65,16 @@ function showNavLinks() {
     // Sample data for doctors and time slots
     const doctorsData = {
         cardiology: [
-            { id: 'doc-1', name: 'Dr. Sarah Johnson', availableDays: ['Monday', 'Wednesday', 'Friday'] },
-            { id: 'doc-2', name: 'Dr. Robert Smith', availableDays: ['Tuesday', 'Thursday', 'Saturday'] }
+            { id: 1, name: 'Dr. Sarah Johnson', availableDays: ['Monday', 'Wednesday', 'Friday'] },
+            { id: 2, name: 'Dr. Robert Smith', availableDays: ['Tuesday', 'Thursday', 'Saturday'] }
         ],
         neurology: [
-            { id: 'doc-3', name: 'Dr. Michael Chen', availableDays: ['Monday', 'Tuesday', 'Thursday'] },
-            { id: 'doc-4', name: 'Dr. Jennifer Lee', availableDays: ['Wednesday', 'Friday', 'Saturday'] }
+            { id: 3 , name: 'Dr. Michael Chen', availableDays: ['Monday', 'Tuesday', 'Thursday'] },
+            { id: 4 , name: 'Dr. Jennifer Lee', availableDays: ['Wednesday', 'Friday', 'Saturday'] }
         ],
         general: [
-            { id: 'doc-5', name: 'Dr. James Brown', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
-            { id: 'doc-6', name: 'Dr. Emily Rodriguez', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }
+            { id: 5, name: 'Dr. James Brown', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
+            { id: 6, name: 'Dr. Emily Rodriguez', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }
         ]
     };
     
@@ -132,47 +127,23 @@ function showNavLinks() {
         if (!fullNameInput || !emailInput || !phoneInput || !passwordInput) {
             throw new Error("One or more form elements are missing.");
         }
-
-        // Determine user role based on email domain and admin pin
-        let role = 'user';
-        if (emailInput.endsWith('@wecare.com')) {
-            if (!adminPinInput) {
-                throw new Error("Admin PIN is required for @wecare.com email addresses.");
-            }
-            if (adminPinInput !== ADMIN_PIN) {
-                throw new Error("Invalid admin PIN.");
-            }
+       let role = 'user';
+        if (adminPinInput === ADMIN_PIN) {
             role = 'admin';
         }
 
-        // Insert user data into Supabase
-        const { data: userData, error: userError } = await supabase
-            .from('user')
-            .insert([{
-                full_name: fullNameInput,
-                email: emailInput,
-                password: passwordInput,
-                contact_no: phoneInput,
-                role: role
-            }]);
-
-        if (userError) {
-            throw new Error(userError.message);
-        }
-
-        // Store additional user data in profiles table if needed
-
-        alert('Registration successful!');
-        document.getElementById('register-modal').classList.remove('active');
-    } catch (error) {
-        alert(error.message);
+        let user = new User(fullNameInput, emailInput, passwordInput, phoneInput, role);
+        await user.register();
+        await user.role(role);
+        // Determine user role based on email domain and admin pin
+        
     } finally {
         submitBtn.disabled = false;
     }
 }
     // Initialize the page
     init();
-    
+
     function init() {
         // Set current date as min date for appointment
         const today = new Date().toISOString().split('T')[0];
@@ -232,62 +203,79 @@ function isValidUser(username, password) {
     return adminUser.some(user => user.username === username && user.password === password);
 }
 
-document.getElementById('login-form')?.addEventListener('submit', async function (e) {
+// Login form submit
+loginForm?.addEventListener('submit', async function (e) {
     e.preventDefault();
-    console.log('Login button clicked');
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
 
     try {
-        // First, check if the user exists in your custom user table
-        const { data: userData, error: userError } = await supabase
-            .from('user')
-            .select('*')
-            .eq('email', email)
-            .eq('password', password)
-            .single();
+        const user = new User();
+        const valid = await user.login(email,password);
 
-        if (userError || !userData) {
-            console.error('Login error:', userError);
-            alert("Invalid credentials. Please try again.");
-            return;
-        }
-
-        // If user exists, create a session
-        alert("Login successful!");
-        
-        // Store user info in sessionStorage
-        sessionStorage.setItem('loggedInUser', JSON.stringify(userData));
-
-        if (userData.role === 'admin') {
-            window.location.href = 'admin1.html';
+        if(!valid){
+           return;
         } else {
-            updateUIForLoggedInUser(userData);
+            sessionStorage.setItem('loggedInUser', JSON.stringify(valid));
+            updateUIForLoggedInUser(valid);
+            if (loginModal) loginModal.classList.remove('active');
+            alert("Login successful!");
         }
     } catch (error) {
-        console.error('Unexpected error:', error);
         alert('Login failed. Please try again.');
     }
 });
 
 function updateUIForLoggedInUser(user) {
-    const loginBtn = document.getElementById('login-btn');
-    const registerBtn = document.getElementById('register-btn');
-    const userGreeting = document.getElementById('user-greeting');
-    const usernameDisplay = document.getElementById('username-display');
-    const loginModal = document.getElementById('login-modal');
-
+    // Hide login/register, show greeting and logout
     if (loginBtn) loginBtn.style.display = 'none';
     if (registerBtn) registerBtn.style.display = 'none';
     if (userGreeting) userGreeting.style.display = 'flex';
     if (usernameDisplay) usernameDisplay.textContent = user.email;
-    
-    document.querySelectorAll('.nav-link').forEach(link => {
-        if (link) link.style.display = 'block';
-    });
+    if (logoutBtn) logoutBtn.style.display = 'block';
+
+    // Hide all sections
+    sections.forEach(section => section.style.display = 'none');
+    // Show only home section by default
+    document.getElementById('home-section').style.display = 'block';
+
+    // Hide all nav links first
+    navLinks.forEach(link => link.style.display = 'none');
+
+    // Only show user nav links for user role
+    if (user.role === 'user') {
+        document.getElementById('book-link').style.display = 'block';
+        document.getElementById('view-link').style.display = 'block';
+    }
+
+    // Hide admin section for user role
+    const adminSection = document.getElementById('admin-section');
+    if (adminSection) adminSection.style.display = 'none';
+
+    // Hide booking and view sections until user clicks nav
+    document.getElementById('book-section').style.display = 'none';
+    document.getElementById('view-section').style.display = 'none';
+
+    // Hide login modal if open
     if (loginModal) loginModal.classList.remove('active');
 }
+document.getElementById('book-link')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    showSection('book-section');
+});
 
+document.getElementById('view-link')?.addEventListener('click', function(e) {
+    e.preventDefault();
+    showSection('view-section');
+});
+
+function showSection(sectionId) {
+    sections.forEach(section => {
+        section.style.display = 'none';
+    });
+    const target = document.getElementById(sectionId);
+    if (target) target.style.display = 'block';
+}
 // Handle logout
 document.getElementById('logoutBtn')?.addEventListener('click', function () {
     supabase.auth.signOut();
@@ -305,11 +293,26 @@ function resetUIForLoggedOutUser() {
 }
 
 // Check if user is logged in on page load
-document.addEventListener('DOMContentLoaded', function () {
+document.addEventListener('DOMContentLoaded', async function () {
     const userData = sessionStorage.getItem('loggedInUser');
     if (userData) {
         const user = JSON.parse(userData);
-        updateUIForLoggedInUser(user);
+
+        // Fetch the latest user info from Supabase for up-to-date role/status
+        const { data: freshUser, error } = await supabase
+            .from('user')
+            .select('*')
+            .eq('email', user.email)
+            .single();
+
+        if (freshUser && !error) {
+            updateUIForLoggedInUser(freshUser);
+            // Optionally update sessionStorage with fresh data
+            sessionStorage.setItem('loggedInUser', JSON.stringify(freshUser));
+        } else {
+            // Fallback to stored user if fetch fails
+            updateUIForLoggedInUser(user);
+        }
     }
 });
 
@@ -458,28 +461,57 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
         document.getElementById('preview-email').textContent = emailInput.value || 'Not provided';
         document.getElementById('preview-phone').textContent = phoneInput.value || 'Not provided';
     }
+
+    async function getPatientIDByName() {
+        try {
+            // First check if patient exists
+            let { data, error } = await supabase 
+                .from('patients')
+                .select('patient_id')
+                .eq('full_name', nameInput.value)
+                .single();
+
+                console.log(nameInput.value);
+
+            return data.patient_id;    
+        } catch (error) {
+            console.error('Error:', error);
+            return null;
+        }
+    }
     
-    function handleBookingSubmit(e) {
-        e.preventDefault();
+async function handleBookingSubmit(e) {
+    e.preventDefault();
+
+     const user = new User();
+     const user_id = await user.getUserIDByUserEmail(emailInput.value);
+     const pat_id = await getPatientIDByName();
+
         
+    if (!pat_id || !user_id) {
+        alert('Patient or user not found.');
+        return;
+    }
+    if (!pat_id){
+        alert(pat_id);
+    }
+    if (!user_id){
+        alert(user_id)
+    }
         // Validate required fields
         if (!departmentSelect.value || !doctorSelect.value || !dateInput.value || 
             !nameInput.value || !emailInput.value || !phoneInput.value) {
             alert('Please fill in all required fields');
             return;
-        }
-        
-        // Create new appointment
-        const newAppointment = {
-            id: generateAppointmentId(),
-            department: departmentSelect.options[departmentSelect.selectedIndex].text,
-            doctor: doctorSelect.options[doctorSelect.selectedIndex].text,
-            date: dateInput.value,
-            patientName: nameInput.value,
-            email: emailInput.value,
-            phone: phoneInput.value,
-            status: 'upcoming'
-        };
+        }   
+             // Create new appointment
+    const newAppointment = {
+        id: generateAppointmentId(),
+        department: departmentSelect.options[departmentSelect.selectedIndex].text,
+        doctor_id: Number(doctorSelect.value), // Use the value, which should be the ID
+        date: dateInput.value,
+        patientid: pat_id,
+    };
         
         // Add to appointments array
         appointments.unshift(newAppointment);
@@ -491,6 +523,12 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         });
         
+        const app = new Appointments(newAppointment.id, newAppointment.patientid, user_id, 
+        newAppointment.doctor_id, newAppointment.dateInput, 
+        "Test", "Follow up", "scheduled");
+        
+        app.insertData();
+
         // Show confirmation modal
         confirmationModal.classList.add('active');
         
@@ -504,13 +542,14 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
         
         // Update appointments list
         renderAppointments();
+
+
     }
     
     function generateAppointmentId() {
         const randomNum = Math.floor(Math.random() * 900) + 100;
-        return `MC-${new Date().getFullYear()}-${randomNum}`;
+        return randomNum;
     }
-    
     function renderAppointments() {
         const statusFilter = filterStatus.value;
         let filteredAppointments = appointments;
@@ -544,13 +583,15 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
                     year: 'numeric', month: 'short', day: 'numeric' 
                 });
                 
+                const status = appointment.status || 'unknown';
+                
                 appointmentCard.innerHTML = `
                     <div class="appointment-info">
                         <h4>${appointment.department} - ${appointment.doctor}</h4>
                         <p>${formattedDate}</p>
                         <p>Patient: ${appointment.patientName}</p>
-                        <span class="appointment-status status-${appointment.status}">
-                            ${appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                        <span class="appointment-status status-${status}">
+                            ${status.charAt(0).toUpperCase() + status.slice(1)}
                         </span>
                     </div>
                     <div class="appointment-actions">
