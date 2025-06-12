@@ -1,13 +1,9 @@
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.3/+esm';
-import Appointments from './appointments.js';
-import User from './users.js';
-const supabaseUrl = 'https://caeytkufykvjrfizvqcc.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNhZXl0a3VmeWt2anJmaXp2cWNjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDk0NTQ2NzYsImV4cCI6MjA2NTAzMDY3Nn0.bKHsVqCkmnH-CtX1HlcsxO6fCcUjLboMx4xRqXRsxgg'; // Replace with your actual public key
-const supabase = createClient(supabaseUrl, supabaseKey);
-
+import Appointments from './classes/appointments.js';
+import User from './classes/users.js';
+import supabase from './classes/database.js'; // Ensure this path is correct
 // Import Supabase client
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     // DOM Elements
     const navLinks = document.querySelectorAll('.nav-link');
     const sections = document.querySelectorAll('section');
@@ -27,7 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const loginFromRegister = document.getElementById('login-from-register');
     const bookingForm = document.getElementById('booking-form');
     const departmentSelect = document.getElementById('department');
-    const doctorSelect = document.getElementById('doctor');
+    const doctors_select = document.getElementById('doctor');
     const dateInput = document.getElementById('date');
     const nameInput = document.getElementById('name');
     const emailInput = document.getElementById('email');
@@ -38,11 +34,24 @@ document.addEventListener('DOMContentLoaded', function() {
     const printAppointmentBtn = document.getElementById('print-appointment');
     const viewAppointmentsBtn = document.getElementById('view-appointments');
     const patientLoginBtn = document.getElementById('patient-login-btn');
+    const reason = document.getElementById('reason').value;
     const adminUser = [{username: 'user@wecare.com', password: 'password123'},
     {username: 'user1@wecare.com', password: 'password123'}];
     const nav = document.querySelector('nav ul');
     const ADMIN_PIN = "123456";
+    let doctors_data = {};
 
+        doctors_data = await fetchDoctorsData();
+        console.log('Fetched doctors_data:', doctors_data);
+        
+            // Now set up event listeners that depend on doctors_data
+        departmentSelect?.addEventListener('change', populateDoctors);
+        doctors_select?.addEventListener('change', enableDateInput);
+        
+            // Optionally, populate doctors for the default department
+        if (departmentSelect.value) {
+                populateDoctors();
+        }
     
 function showNavLinks() {
     navLinks.forEach(link => link.style.display = 'block');
@@ -61,22 +70,22 @@ function showNavLinks() {
 
     // Calendar instance variable
     let calendar = null;
-
+  
     // Sample data for doctors and time slots
-    const doctorsData = {
-        cardiology: [
-            { id: 1, name: 'Dr. Sarah Johnson', availableDays: ['Monday', 'Wednesday', 'Friday'] },
-            { id: 2, name: 'Dr. Robert Smith', availableDays: ['Tuesday', 'Thursday', 'Saturday'] }
-        ],
-        neurology: [
-            { id: 3 , name: 'Dr. Michael Chen', availableDays: ['Monday', 'Tuesday', 'Thursday'] },
-            { id: 4 , name: 'Dr. Jennifer Lee', availableDays: ['Wednesday', 'Friday', 'Saturday'] }
-        ],
-        general: [
-            { id: 5, name: 'Dr. James Brown', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
-            { id: 6, name: 'Dr. Emily Rodriguez', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }
-        ]
-    };
+    // const doctorsData = {
+    //     cardiology: [
+    //         { id: 1, name: 'Dr. Sarah Johnson', availableDays: ['Monday', 'Wednesday', 'Friday'] },
+    //         { id: 2, name: 'Dr. Robert Smith', availableDays: ['Tuesday', 'Thursday', 'Saturday'] }
+    //     ],
+    //     neurology: [
+    //         { id: 3 , name: 'Dr. Michael Chen', availableDays: ['Monday', 'Tuesday', 'Thursday'] },
+    //         { id: 4 , name: 'Dr. Jennifer Lee', availableDays: ['Wednesday', 'Friday', 'Saturday'] }
+    //     ],
+    //     general: [
+    //         { id: 5, name: 'Dr. James Brown', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
+    //         { id: 6, name: 'Dr. Emily Rodriguez', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }
+    //     ]
+    // };
     
     // Sample appointments data
     let appointments = [
@@ -112,38 +121,157 @@ function showNavLinks() {
         }
     ];
     
-    async function handleRegisterSubmit(e) {
-    e.preventDefault();
-    const submitBtn = e.target.querySelector('button[type="submit"]');
-    submitBtn.disabled = true;
+// First, ensure we have the doctors data loaded
 
+// Improved fetchDoctorsData function
+async function fetchDoctorsData() {
     try {
-        const fullNameInput = document.getElementById('reg-name').value;
-        const emailInput = document.getElementById('reg-email').value;
-        const phoneInput = document.getElementById('reg-phone').value;
-        const passwordInput = document.getElementById('reg-password').value;
-        const adminPinInput = document.getElementById('reg-pin').value;
+        // Join staffs and doctor_schedule tables to get all needed data in one query
+        const { data, error } = await supabase
+            .from('staffs')
+            .select(`
+                staff_id,
+                full_name,
+                specialization,
+                doctor_schedule (
+                    day_of_week
+                )
+            `)
+            .eq('staff_type', 'Doctor')
+            .order('full_name', { ascending: true });
 
-        if (!fullNameInput || !emailInput || !phoneInput || !passwordInput) {
-            throw new Error("One or more form elements are missing.");
+        if (error) throw error;
+        if (!data || data.length === 0) {
+            console.warn('No doctors found in database');
+            return {};
         }
-       let role = 'user';
-        if (adminPinInput === ADMIN_PIN) {
-            role = 'admin';
-        }
+        console.log('Fetched doctors data:', data);
+        // Organize doctors by specialization (normalized to lowercase)
+        const organizedData = {};
+        data.forEach(doc => {
+            // Normalize specialization to lowercase for consistent matching
+            const specialization = doc.specialization?.trim().toLowerCase() || 'general';
+            
+            if (!organizedData[specialization]) {
+                organizedData[specialization] = [];
+            }
+            
+            // Get available days from schedule
+            const availableDays = (doc.doctor_schedule || []).map(sch => sch.day_of_week);
+            
+            organizedData[specialization].push({
+                id: doc.staff_id,
+                name: doc.full_name,
+                availableDays: availableDays
+            });
+        });
 
-        let user = new User(fullNameInput, emailInput, passwordInput, phoneInput, role);
-        await user.register();
-        await user.role(role);
-        // Determine user role based on email domain and admin pin
-        
-    } finally {
-        submitBtn.disabled = false;
+        console.log('Organized doctors data:', organizedData);
+        return organizedData;
+    } catch (error) {
+        console.error('Error fetching doctors data:', error);
+        return {};
     }
+}
+
+// Improved populateDoctors function
+function populateDoctors() {
+    // Clear previous options
+    doctors_select.innerHTML = '<option value="">Select Doctor</option>';
+    
+    // Get selected department value (normalized to lowercase)
+    const selectedDept = departmentSelect.value.toLowerCase().trim();
+    
+    // Check if we have doctors for this department
+    if (selectedDept && doctors_data[selectedDept] && doctors_data[selectedDept].length > 0) {
+        doctors_select.disabled = false;
+        
+        // Add doctors to dropdown
+        doctors_data[selectedDept].forEach(doctor => {
+            const option = document.createElement('option');
+            option.value = doctor.id;
+            option.textContent = doctor.name;
+            doctors_select.appendChild(option);
+        });
+    } else {
+        doctors_select.disabled = true;
+        console.log(`No doctors found for department: ${selectedDept}`);
+    }
+    
+    // Reset date input when department changes
+    dateInput.value = '';
+    dateInput.disabled = true;
+    
+    updatePreview();
+}
+
+departmentSelect?.addEventListener('change', function() {
+    console.log('Department changed to:', departmentSelect.value);
+    console.log('Available specializations:', Object.keys(doctors_data));
+    populateDoctors();
+});
+// Initialize the doctors data when the page loads
+document.addEventListener('DOMContentLoaded', async function() {
+    // Load doctors data first
+    doctors_data = await fetchDoctorsData();
+    console.log('Loaded doctors data:', doctors_data);
+    
+    // Set up department change listener
+    departmentSelect?.addEventListener('change', populateDoctors);
+    
+    // If there's a default department selected, populate its doctors
+    if (departmentSelect.value) {
+        populateDoctors();
+    }
+});
+
+
+// Initialize the doctors data when the page loads
+document.addEventListener('DOMContentLoaded', async function() {
+    doctors_data = await fetchDoctorsData();
+    console.log('Loaded doctors data:', doctors_data);
+    
+    // Set up department change listener
+    departmentSelect?.addEventListener('change', populateDoctors);
+    
+    // If there's a default department selected, populate its doctors
+    if (departmentSelect.value) {
+        populateDoctors();
+    }
+});
+
+    async function handleRegisterSubmit(e) {
+        e.preventDefault();
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        submitBtn.disabled = true;
+
+        try {
+            const fullNameInput = document.getElementById('reg-name').value;
+            const emailInput = document.getElementById('reg-email').value;
+            const phoneInput = document.getElementById('reg-phone').value;
+            const passwordInput = document.getElementById('reg-password').value;
+            const adminPinInput = document.getElementById('reg-pin').value;
+
+            if (!fullNameInput || !emailInput || !phoneInput || !passwordInput) {
+                throw new Error("One or more form elements are missing.");
+            }
+        let role = 'user';
+            if (adminPinInput === ADMIN_PIN) {
+                role = 'admin';
+            }
+
+            let user = new User(fullNameInput, emailInput, passwordInput, phoneInput, role);
+            await user.register();
+            await user.role(role);
+            // Determine user role based on email domain and admin pin
+            
+        } finally {
+            submitBtn.disabled = false;
+        }
 }
     // Initialize the page
     init();
-
+    
     function init() {
         // Set current date as min date for appointment
         const today = new Date().toISOString().split('T')[0];
@@ -154,6 +282,7 @@ function showNavLinks() {
         
         // Set up event listeners
         setupEventListeners();
+        
     }
     
     function setupEventListeners() {
@@ -195,10 +324,6 @@ emailInput.addEventListener('input', function() {
 });
     }
 
-
-
-
-        
 function isValidUser(username, password) {
     return adminUser.some(user => user.username === username && user.password === password);
 }
@@ -298,7 +423,6 @@ document.addEventListener('DOMContentLoaded', async function () {
     if (userData) {
         const user = JSON.parse(userData);
 
-        // Fetch the latest user info from Supabase for up-to-date role/status
         const { data: freshUser, error } = await supabase
             .from('user')
             .select('*')
@@ -327,9 +451,6 @@ heroBookBtn.addEventListener('click', function() {
         document.getElementById('book-link').classList.add('active');
     }
 });
-
-
-
 
         
         // Auth buttons
@@ -389,11 +510,11 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
 
 
         departmentSelect?.addEventListener('change', populateDoctors);
-        doctorSelect?.addEventListener('change', enableDateInput);
+        doctors_select?.addEventListener('change', enableDateInput);
         
         bookingForm?.addEventListener('submit', handleBookingSubmit);
         
-        [departmentSelect, doctorSelect, dateInput, nameInput, emailInput, phoneInput].forEach(input => {
+        [departmentSelect, doctors_select, dateInput, nameInput, emailInput, phoneInput].forEach(input => {
             input?.addEventListener('change', updatePreview);
         });
 
@@ -409,40 +530,19 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
         });
     }
     
-    function showSection(sectionId) {
-        sections.forEach(section => {
-            section.classList.remove('active-section');
-        });
-        document.getElementById(sectionId).classList.add('active-section');
-    }
-    
-    function populateDoctors() {
-        const department = departmentSelect.value;
-        doctorSelect.innerHTML = '<option value="">Select Doctor</option>';
-        
-        if (department) {
-            doctorSelect.disabled = false;
-            const doctors = doctorsData[department];
-            
-            doctors.forEach(doctor => {
-                const option = document.createElement('option');
-                option.value = doctor.id;
-                option.textContent = doctor.name;
-                doctorSelect.appendChild(option);
-            });
-        } else {
-            doctorSelect.disabled = true;
-            dateInput.disabled = true;
-        }
-        
-        updatePreview();
-    }
+function showSection(sectionId) {
+    sections.forEach(section => {
+        section.classList.remove('active-section');
+    });
+    document.getElementById(sectionId).classList.add('active-section');
+    updatePreview();
+}
     
     function enableDateInput() {
-        if (doctorSelect.value) {
+        if (doctors_select.value) {
             dateInput.disabled = false;
             // Update calendar with doctor's available days
-            const selectedDoctor = doctorSelect.options[doctorSelect.selectedIndex].text;
+            const selectedDoctor = doctors_select.options[doctors_select.selectedIndex].text;
             updateCalendar(selectedDoctor);
         } else {
             dateInput.disabled = true;
@@ -453,7 +553,7 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
     
     function updatePreview() {
         document.getElementById('preview-dept').textContent = departmentSelect.options[departmentSelect.selectedIndex].text || 'Not selected';
-        document.getElementById('preview-doc').textContent = doctorSelect.options[doctorSelect.selectedIndex].text || 'Not selected';
+        document.getElementById('preview-doc').textContent = doctors_select.options[doctors_select.selectedIndex].text || 'Not selected';
         document.getElementById('preview-date').textContent = dateInput.value ? new Date(dateInput.value).toLocaleDateString('en-US', { 
             weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
         }) : 'Not selected';
@@ -479,7 +579,6 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
             return null;
         }
     }
-    
 async function handleBookingSubmit(e) {
     e.preventDefault();
 
@@ -499,7 +598,7 @@ async function handleBookingSubmit(e) {
         alert(user_id)
     }
         // Validate required fields
-        if (!departmentSelect.value || !doctorSelect.value || !dateInput.value || 
+        if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
             !nameInput.value || !emailInput.value || !phoneInput.value) {
             alert('Please fill in all required fields');
             return;
@@ -508,9 +607,10 @@ async function handleBookingSubmit(e) {
     const newAppointment = {
         id: generateAppointmentId(),
         department: departmentSelect.options[departmentSelect.selectedIndex].text,
-        doctor_id: Number(doctorSelect.value), // Use the value, which should be the ID
+        doctor_id: Number(doctors_select.value), // Use the value, which should be the ID
         date: dateInput.value,
         patientid: pat_id,
+        purpose: reason
     };
         
         // Add to appointments array
@@ -524,8 +624,8 @@ async function handleBookingSubmit(e) {
         });
         
         const app = new Appointments(newAppointment.id, newAppointment.patientid, user_id, 
-        newAppointment.doctor_id, newAppointment.dateInput, 
-        "Test", "Follow up", "scheduled");
+        newAppointment.doctor_id, newAppointment.date, 
+        "Test", newAppointment.purpose, "scheduled");
         
         app.insertData();
 
@@ -534,7 +634,7 @@ async function handleBookingSubmit(e) {
         
         // Reset form
         bookingForm.reset();
-        doctorSelect.disabled = true;
+        doctors_select.disabled = true;
         dateInput.disabled = true;
         
         // Update preview
@@ -678,8 +778,8 @@ async function handleBookingSubmit(e) {
 
     // Helper function to find doctor by name
     function findDoctorByName(name) {
-        for (const department in doctorsData) {
-            const doctor = doctorsData[department].find(doc => doc.name === name);
+        for (const department in doctors_data) {
+            const doctor = doctors_data[department].find(doc => doc.name === name);
             if (doctor) {
                 return doctor;
             }
