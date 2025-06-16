@@ -1,6 +1,8 @@
 import Appointments from './classes/appointments.js';
 import User from './classes/users.js';
-import supabase from './classes/database.js'; // Ensure this path is correct
+import supabase from './classes/database.js';
+import Patien from './classes/patient.js'; // Ensure this path is correct
+import Patient from './classes/patient.js';
 // Import Supabase client
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -70,59 +72,8 @@ function showNavLinks() {
 
     // Calendar instance variable
     let calendar = null;
-  
-    // Sample data for doctors and time slots
-    // const doctorsData = {
-    //     cardiology: [
-    //         { id: 1, name: 'Dr. Sarah Johnson', availableDays: ['Monday', 'Wednesday', 'Friday'] },
-    //         { id: 2, name: 'Dr. Robert Smith', availableDays: ['Tuesday', 'Thursday', 'Saturday'] }
-    //     ],
-    //     neurology: [
-    //         { id: 3 , name: 'Dr. Michael Chen', availableDays: ['Monday', 'Tuesday', 'Thursday'] },
-    //         { id: 4 , name: 'Dr. Jennifer Lee', availableDays: ['Wednesday', 'Friday', 'Saturday'] }
-    //     ],
-    //     general: [
-    //         { id: 5, name: 'Dr. James Brown', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] },
-    //         { id: 6, name: 'Dr. Emily Rodriguez', availableDays: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'] }
-    //     ]
-    // };
+    let appointments = {};
     
-    // Sample appointments data
-    let appointments = [
-        {
-            id: 'MC-2023-001',
-            department: 'Cardiology',
-            doctor: 'Dr. Sarah Johnson',
-            date: '2023-06-15',
-            patientName: 'John Doe',
-            email: 'john@example.com',
-            phone: '123-456-7890',
-            status: 'upcoming'
-        },
-        {
-            id: 'MC-2023-002',
-            department: 'Neurology',
-            doctor: 'Dr. Michael Chen',
-            date: '2023-05-20',
-            patientName: 'John Doe',
-            email: 'john@example.com',
-            phone: '123-456-7890',
-            status: 'completed'
-        },
-        {
-            id: 'MC-2023-003',
-            department: 'General Medicine',
-            doctor: 'Dr. Jennifer Lee',
-            date: '2023-06-01',
-            patientName: 'John Doe',
-            email: 'john@example.com',
-            phone: '123-456-7890',
-            status: 'cancelled'
-        }
-    ];
-    
-// First, ensure we have the doctors data loaded
-
 // Improved fetchDoctorsData function
 async function fetchDoctorsData() {
     try {
@@ -176,17 +127,12 @@ async function fetchDoctorsData() {
 
 // Improved populateDoctors function
 function populateDoctors() {
-    // Clear previous options
     doctors_select.innerHTML = '<option value="">Select Doctor</option>';
-    
-    // Get selected department value (normalized to lowercase)
     const selectedDept = departmentSelect.value.toLowerCase().trim();
-    
-    // Check if we have doctors for this department
+    console.log('Selected department:', selectedDept);
+    console.log('Available specializations:', Object.keys(doctors_data));
     if (selectedDept && doctors_data[selectedDept] && doctors_data[selectedDept].length > 0) {
         doctors_select.disabled = false;
-        
-        // Add doctors to dropdown
         doctors_data[selectedDept].forEach(doctor => {
             const option = document.createElement('option');
             option.value = doctor.id;
@@ -197,14 +143,46 @@ function populateDoctors() {
         doctors_select.disabled = true;
         console.log(`No doctors found for department: ${selectedDept}`);
     }
-    
-    // Reset date input when department changes
     dateInput.value = '';
     dateInput.disabled = true;
-    
     updatePreview();
 }
 
+async function populateMyAppointments() {
+    try {
+        const appointmentsInstance = new Appointments();
+        const user = new User();
+        const user_id = await user.getUserIDByUserEmail(usernameDisplay.textContent);
+        if (!user_id) {
+            console.error('No user_id found for current user');
+            return [];
+        }
+        const appointments = await appointmentsInstance.myAppointments(user_id);
+
+        const status_filter = document.getElementById('filter-status').value;
+        let filtered_appointments = appointments;
+
+        if (status_filter !== 'all') {
+            filtered_appointments = appointments.filter(app => app.status === status_filter);
+        }
+
+        // Map DB fields to UI fields
+        return filtered_appointments.map(app => ({
+            id: app.appointment_id,
+            department: app.staffs?.specialization || '', 
+            doctor: app.staffs?.full_name || app.doctor || '', // If you join doctor info
+            date: app.appointment_date_time || app.date,
+            patientName: app.patients?.full_name || app.patientName || '',
+            email: app.patients?.email || app.email || '',
+            phone: app.patients?.contact_no || app.phone || '',
+            status: app.status
+        }));
+
+    } catch (error) {
+        console.error('Error in Populate My Appointments', error);
+        throw error;
+    }
+}
 departmentSelect?.addEventListener('change', function() {
     console.log('Department changed to:', departmentSelect.value);
     console.log('Available specializations:', Object.keys(doctors_data));
@@ -224,7 +202,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         populateDoctors();
     }
 });
-
 
 // Initialize the doctors data when the page loads
 document.addEventListener('DOMContentLoaded', async function() {
@@ -277,8 +254,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         const today = new Date().toISOString().split('T')[0];
         dateInput.setAttribute('min', today);
         
-        // Load appointments
-        renderAppointments();
+        const user_data = JSON.parse(sessionStorage.getItem('loggedInUser'));
+        if (user_data && user_data.user_id) {
+            renderAppointments();
+        }
+
         
         // Set up event listeners
         setupEventListeners();
@@ -341,7 +321,12 @@ loginForm?.addEventListener('submit', async function (e) {
         if(!valid){
            return;
         } else {
-            sessionStorage.setItem('loggedInUser', JSON.stringify(valid));
+           sessionStorage.setItem('loggedInUser', JSON.stringify({
+                user_id: valid.user_id,
+                email: valid.email,
+                role: valid.role
+        }));
+            console.log(JSON.parse(sessionStorage.getItem('loggedInUser')));
             updateUIForLoggedInUser(valid);
             if (loginModal) loginModal.classList.remove('active');
             alert("Login successful!");
@@ -593,6 +578,8 @@ async function handleBookingSubmit(e) {
     }
     if (!pat_id){
         alert(pat_id);
+         
+
     }
     if (!user_id){
         alert(user_id)
@@ -610,11 +597,13 @@ async function handleBookingSubmit(e) {
         doctor_id: Number(doctors_select.value), // Use the value, which should be the ID
         date: dateInput.value,
         patientid: pat_id,
-        purpose: reason
+        purpose: reason,
+        contact_no: phoneInput,
+        full_name: nameInput
     };
         
         // Add to appointments array
-        appointments.unshift(newAppointment);
+        // appointments.unshift(newAppointment);
         
         // Update confirmation modal
         document.getElementById('confirm-id').textContent = newAppointment.id;
@@ -625,40 +614,41 @@ async function handleBookingSubmit(e) {
         
         const app = new Appointments(newAppointment.id, newAppointment.patientid, user_id, 
         newAppointment.doctor_id, newAppointment.date, 
-        "Test", newAppointment.purpose, "scheduled");
+        "Online", newAppointment.purpose, "upcoming");
+        const patient = new Patient(user_id,newAppointment.full_name, '', newAppointment.contact_no, '', '');
+        patient.insertData();
         
-        app.insertData();
-
-        // Show confirmation modal
-        confirmationModal.classList.add('active');
-        
-        // Reset form
-        bookingForm.reset();
-        doctors_select.disabled = true;
-        dateInput.disabled = true;
-        
-        // Update preview
-        updatePreview();
-        
-        // Update appointments list
-        renderAppointments();
-
-
+        const result = await app.insertData();
+            if (result.error) {
+                app.showLimitedAppointmentOnline();
+            } else {
+                confirmationModal.classList.add('active');
+                 bookingForm.reset();
+                doctors_select.disabled = true;
+                dateInput.disabled = true;
+                // Update preview
+                updatePreview();
+                      // Update appointments list
+                await renderAppointments();
+            }
     }
     
     function generateAppointmentId() {
-        const randomNum = Math.floor(Math.random() * 900) + 100;
+        const randomNum = Math.floor(Math.random() * 500) + 100;
         return randomNum;
     }
-    function renderAppointments() {
-        const statusFilter = filterStatus.value;
-        let filteredAppointments = appointments;
+   async function renderAppointments() {
+    const appointmentsList = document.getElementById('appointments-list');
+    const statusFilter = document.getElementById('filter-status').value;
+    
+    const user_data = JSON.parse(sessionStorage.getItem('loggedInUser'));
+
+    try {
+        // Get the appointment data
+         appointments = await populateMyAppointments();
         
-        if (statusFilter !== 'all') {
-            filteredAppointments = appointments.filter(app => app.status === statusFilter);
-        }
-        
-        if (filteredAppointments.length === 0) {
+        // Handle empty state
+        if (!appointments || appointments.length === 0) {
             appointmentsList.innerHTML = `
                 <div class="no-appointments">
                     <i class="far fa-calendar-alt"></i>
@@ -672,91 +662,102 @@ async function handleBookingSubmit(e) {
                 document.querySelectorAll('nav a').forEach(navLink => navLink.classList.remove('active'));
                 document.getElementById('book-link').classList.add('active');
             });
-        } else {
-            appointmentsList.innerHTML = '';
-            
-            filteredAppointments.forEach(appointment => {
-                const appointmentCard = document.createElement('div');
-                appointmentCard.className = 'appointment-card';
-                
-                const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', { 
-                    year: 'numeric', month: 'short', day: 'numeric' 
-                });
-                
-                const status = appointment.status || 'unknown';
-                
-                appointmentCard.innerHTML = `
-                    <div class="appointment-info">
-                        <h4>${appointment.department} - ${appointment.doctor}</h4>
-                        <p>${formattedDate}</p>
-                        <p>Patient: ${appointment.patientName}</p>
-                        <span class="appointment-status status-${status}">
-                            ${status.charAt(0).toUpperCase() + status.slice(1)}
-                        </span>
-                    </div>
-                    <div class="appointment-actions">
-                        ${appointment.status === 'upcoming' ? 
-                            `<button class="btn btn-danger cancel-btn" data-id="${appointment.id}">Cancel</button>` : ''}
-                        <button class="btn btn-outline details-btn" data-id="${appointment.id}">Details</button>
-                    </div>
-                `;
-                
-                appointmentsList.appendChild(appointmentCard);
-            });
-            
-            // Add event listeners to action buttons
-            document.querySelectorAll('.cancel-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const appointmentId = this.getAttribute('data-id');
-                    cancelAppointment(appointmentId);
-                });
-            });
-            
-            document.querySelectorAll('.details-btn').forEach(btn => {
-                btn.addEventListener('click', function() {
-                    const appointmentId = this.getAttribute('data-id');
-                    showAppointmentDetails(appointmentId);
-                });
-            });
+            return;
         }
+
+        // Clear existing appointments
+        appointmentsList.innerHTML = '';
+        
+        // Render each appointment
+    appointments.forEach(appointment => {
+    const status = (appointment.status || '').toLowerCase();
+    const appointmentCard = document.createElement('div');
+    appointmentCard.className = 'appointment-card';
+
+    // Format date
+    const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
+    // Build card HTML
+    appointmentCard.innerHTML = `
+        <div class="appointment-info">
+            <h4>${appointment.department} - ${appointment.doctor}</h4>
+            <p>${formattedDate}</p>
+            <p>Patient: ${appointment.patientName}</p>
+            <span class="appointment-status status-${status}">
+                ${appointment.status ? appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1) : ''}
+            </span>
+        </div>
+        <div class="appointment-actions">
+            ${status === 'upcoming' || status === 'scheduled' ? 
+                `<button class="btn btn-danger cancel-btn" data-id="${appointment.id}">Cancel</button>` : ''}
+            <button class="btn btn-outline details-btn" data-id="${appointment.id}">Details</button>
+        </div>
+    `;
+            
+            appointmentsList.appendChild(appointmentCard);
+        });
+
+        // Add event listeners
+        setupAppointmentEventListeners();
+
+    } catch (error) {
+        console.error('Error rendering appointments:', error);
+        appointmentsList.innerHTML = `
+            <div class="error-state">
+                <i class="fas fa-exclamation-triangle"></i>
+                <p>Failed to load appointments. Please try again.</p>
+            </div>
+        `;
     }
+}
+
+function setupAppointmentEventListeners() {
+    document.querySelectorAll('.cancel-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const appointmentId = this.getAttribute('data-id');
+            cancelAppointment(appointmentId);
+        });
+    });
     
-    function cancelAppointment(appointmentId) {
-        if (confirm('Are you sure you want to cancel this appointment?')) {
-            const appointmentIndex = appointments.findIndex(app => app.id === appointmentId);
-            if (appointmentIndex !== -1) {
-                appointments[appointmentIndex].status = 'cancelled';
-                renderAppointments();
-                
-                // Show notification
-                alert('Appointment has been cancelled.');
-            }
-        }
-    }
+    document.querySelectorAll('.details-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const appointmentId = this.getAttribute('data-id');
+            showAppointmentDetails(appointmentId);
+        });
+    });
+}
     
     function showAppointmentDetails(appointmentId) {
-        const appointment = appointments.find(app => app.id === appointmentId);
-        if (appointment) {
-            const formattedDate = new Date(appointment.date).toLocaleDateString('en-US', { 
+        // appointments should be the latest array used in renderAppointments
+        const found = appointments.find(app => String(app.id) === String(appointmentId));
+        if (found) {
+            const formattedDate = new Date(found.date).toLocaleDateString('en-US', { 
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
             });
-            
+            found
+
             const detailsHtml = `
                 <h3>Appointment Details</h3>
                 <div class="appointment-details">
-                    <p><strong>Appointment ID:</strong> ${appointment.id}</p>
-                    <p><strong>Department:</strong> ${appointment.department}</p>
-                    <p><strong>Doctor:</strong> ${appointment.doctor}</p>
+                    <p><strong>Appointment ID:</strong> ${found.id}</p>
+                    <p><strong>Department:</strong> ${found.specialization }</p>
+                    <p><strong>Doctor:</strong> ${found.doctor}</p>
                     <p><strong>Date:</strong> ${formattedDate}</p>
-                    <p><strong>Patient Name:</strong> ${appointment.patientName}</p>
-                    <p><strong>Email:</strong> ${appointment.email}</p>
-                    <p><strong>Phone:</strong> ${appointment.phone}</p>
-                    <p><strong>Status:</strong> <span class="status-${appointment.status}">
-                        ${appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+                    <p><strong>Patient Name:</strong> ${found.patientName}</p>
+                    <p><strong>Email:</strong> ${found.email || usernameDisplay.textContent}</p>
+                    <p><strong>Phone:</strong> ${found.phone}</p>
+                    <p><strong>Status:</strong> <span class="status-${found.status}">
+                        ${found.status.charAt(0).toUpperCase() + found.status.slice(1)}
                     </span></p>
                 </div>
             `;
-            
+
             // Create a modal for details
             const detailsModal = document.createElement('div');
             detailsModal.className = 'modal active';
@@ -766,16 +767,15 @@ async function handleBookingSubmit(e) {
                     ${detailsHtml}
                 </div>
             `;
-            
+
             document.body.appendChild(detailsModal);
-            
+
             // Add close event
             detailsModal.querySelector('.close-modal').addEventListener('click', () => {
                 detailsModal.remove();
             });
         }
-    }
-
+}
     // Helper function to find doctor by name
     function findDoctorByName(name) {
         for (const department in doctors_data) {
