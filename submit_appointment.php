@@ -31,3 +31,9 @@ echo "New appointment created successfully";
 $stmt->close();
 $conn->close();
 ?>
+
+
+        const staff = new Staff(1, 101, 'John Doe', 'john@example', '0946565651', 'password123', true);
+        applyMixins(Staff, [User, Appointments]);
+        const list = staff.appointment.getListAppointments();
+        console.log(list);

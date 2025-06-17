@@ -1,3 +1,5 @@
+import Appointments from "./classes/appointments.js";
+
 // Make loadDashboard function available globally
 let loadDashboard;
 
@@ -89,10 +91,21 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
+        window.loadDashboard = loadDashboard;
         // Reinitialize the charts and calendar
+    
+
+    try {
         initAppointmentsChart();
         initSpecializationChart();
-        initCalendar();
+        if (typeof FullCalendar !== 'undefined') {
+            initCalendar();
+        } else {
+            console.error('FullCalendar library not loaded');
+        }
+    } catch (error) {
+        console.error('Initialization error:', error);
+    }
     };
 
     // Make loadDashboard available globally
@@ -190,7 +203,55 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    function loadAppointmentsSection() {
+    async function loadAppointmentsData() {
+    try {
+        const app = new Appointments();
+        const appointments = await app.getListAppointments();
+        
+        const tableBody = document.getElementById('appointmentsTableBody');
+        tableBody.innerHTML = appointments.map(appointment => `
+            <tr>
+                <td>${appointment.patientName || appointment.patients?.full_name || 'N/A'}</td>
+                <td>${appointment.doctor || appointment.staffs?.full_name || 'N/A'}</td>
+                <td>${appointment.date || new Date(appointment.appointment_date_time).toLocaleDateString()}</td>
+                <td>${appointment.time || new Date(appointment.appointment_date_time).toLocaleTimeString()}</td>
+                <td>${appointment.type || appointment.appointment_type || 'N/A'}</td>
+                <td>${appointment.purpose || 'N/A'}</td>
+                <td><span class="status-badge ${appointment.status}">${appointment.status}</span></td>
+                <td>${appointment.lastUpdated || 'N/A'}</td>
+                <td>${appointment.updatedBy || 'N/A'}</td>
+                <td>
+                    <button onclick="viewAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn view">👁️</button>
+                    <button onclick="editAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn edit">✏️</button>
+                    <button onclick="rescheduleAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn reschedule">📅</button>
+                    <button onclick="cancelAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn cancel">❌</button>
+                </td>
+            </tr>
+        `).join('');
+    } catch (error) {
+        console.error('Error loading appointments:', error);
+        // Show error message to user
+    }
+}
+
+    function initializeAppointmentManagement() {
+        // Load initial data
+        loadAppointmentsData();
+        
+        // Set up event listeners for filters
+        document.getElementById('appointmentSearch').addEventListener('input', filterAppointments);
+        document.getElementById('statusFilter').addEventListener('change', filterAppointments);
+        document.getElementById('timeFrameFilter').addEventListener('change', filterAppointments);
+        document.getElementById('dateFilter').addEventListener('change', filterAppointments);
+        
+        // Set up form submission handler
+        document.getElementById('appointmentForm').addEventListener('submit', handleAppointmentSubmit);
+        
+        // Load doctors and patients for dropdowns
+        loadDoctorsForAppointments();
+        loadPatientsForAppointments();
+    }
+function loadAppointmentsSection() {
         mainContent.innerHTML = `
             <div class="section-header">
                 <h1 class="section-title">Appointment Management</h1>
@@ -227,6 +288,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 <table class="data-table">
                     <thead>
                         <tr>
+                            <th>Appointment ID</th>
+                            <th>Patient ID</th>
                             <th>Patient Name</th>
                             <th>Doctor</th>
                             <th>Date</th>
@@ -297,76 +360,39 @@ document.addEventListener('DOMContentLoaded', () => {
         
         // Initialize the appointment management features
         initializeAppointmentManagement();
-    }
-
-    function initializeAppointmentManagement() {
-        // Load initial data
-        loadAppointmentsData();
-        
-        // Set up event listeners for filters
-        document.getElementById('appointmentSearch').addEventListener('input', filterAppointments);
-        document.getElementById('statusFilter').addEventListener('change', filterAppointments);
-        document.getElementById('timeFrameFilter').addEventListener('change', filterAppointments);
-        document.getElementById('dateFilter').addEventListener('change', filterAppointments);
-        
-        // Set up form submission handler
-        document.getElementById('appointmentForm').addEventListener('submit', handleAppointmentSubmit);
-        
-        // Load doctors and patients for dropdowns
-        loadDoctorsForAppointments();
-        loadPatientsForAppointments();
-    }
-
-    function loadAppointmentsData() {
-        // Simulated data - replace with actual API call
-        const appointments = [
-            {
-                id: 1,
-                patientName: "John Doe",
-                doctor: "Dr. Smith",
-                date: "2024-03-20",
-                time: "10:00 AM",
-                type: "consultation",
-                purpose: "Regular checkup",
-                status: "scheduled",
-                lastUpdated: "2024-03-19 15:30",
-                updatedBy: "Admin User"
-            },
-            {
-                id: 2,
-                patientName: "Jane Smith",
-                doctor: "Dr. Johnson",
-                date: "2024-03-20",
-                time: "11:30 AM",
-                type: "followup",
-                purpose: "Review test results",
-                status: "completed",
-                lastUpdated: "2024-03-20 12:00",
-                updatedBy: "Dr. Johnson"
-            }
-        ];
+}
+async function loadAppointmentsData() {
+    try {
+        const app = new Appointments();
+        const appointments = await app.getListAppointments();
         
         const tableBody = document.getElementById('appointmentsTableBody');
         tableBody.innerHTML = appointments.map(appointment => `
             <tr>
-                <td>${appointment.patientName}</td>
-                <td>${appointment.doctor}</td>
-                <td>${appointment.date}</td>
-                <td>${appointment.time}</td>
-                <td>${appointment.type}</td>
-                <td>${appointment.purpose}</td>
+                <td>${appointment.appointment_id || appointment.patients?.id || 'N/A'}</td>
+                <td>${appointment.patient_id || appointment.patients?.id || 'N/A'}</td>
+                <td>${appointment.patientName || appointment.patients?.full_name || 'N/A'}</td>
+                <td>${appointment.doctor || appointment.staffs?.full_name || 'N/A'}</td>
+                <td>${appointment.date || new Date(appointment.appointment_date_time).toLocaleDateString()}</td>
+                <td>${appointment.time || new Date(appointment.appointment_date_time).toLocaleTimeString()}</td>
+                <td>${appointment.type || appointment.appointment_type || 'N/A'}</td>
+                <td>${appointment.purpose || 'N/A'}</td>
                 <td><span class="status-badge ${appointment.status}">${appointment.status}</span></td>
-                <td>${appointment.lastUpdated}</td>
-                <td>${appointment.updatedBy}</td>
+                <td>${appointment.lastUpdated || 'N/A'}</td>
+                <td>${appointment.updatedBy || 'N/A'}</td>
                 <td>
-                    <button onclick="viewAppointment(${appointment.id})" class="icon-btn view" title="Assign appointments">👁️</button>
-                    <button onclick="editAppointment(${appointment.id})" class="icon-btn edit" title="Edit">✏️</button>
-                    <button onclick="rescheduleAppointment(${appointment.id})" class="icon-btn reschedule" title="Reschedule">📅</button>
-                    <button onclick="cancelAppointment(${appointment.id})" class="icon-btn cancel" title="Cancel">❌</button>
+                    <button onclick="viewAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn view">👁️</button>
+                    <button onclick="editAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn edit">✏️</button>
+                    <button onclick="rescheduleAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn reschedule">📅</button>
+                    <button onclick="cancelAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn cancel">❌</button>
                 </td>
             </tr>
         `).join('');
+    } catch (error) {
+        console.error('Error loading appointments:', error);
+        // Show error message to user
     }
+}
 
     function openAppointmentModal(mode, appointmentId = null) {
         const modal = document.getElementById('appointmentModal');
@@ -1529,81 +1555,119 @@ document.getElementById('logout-btn').addEventListener('click', () => {
     window.location.href = 'index.html';
 });
 
-function initAppointmentsChart() {
-    const ctx = document.getElementById('appointmentsChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'line',
-        data: {
-            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
-            datasets: [
-                {
-                    label: 'Completed Appointments',
-                    data: [65, 59, 80, 81, 56, 55, 40],
-                    borderColor: '#3b82f6',
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'Cancelled Appointments',
-                    data: [28, 48, 40, 19, 86, 27, 90],
-                    borderColor: '#ef4444',
-                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                },
-                {
-                    label: 'New Appointments',
-                    data: [18, 38, 50, 29, 76, 37, 60],
-                    borderColor: '#10b981', // Changed to a distinct green
-                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                    tension: 0.4,
-                    fill: true
-                }
-            ]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                legend: { position: 'top' },
-                title: { display: true, text: 'Monthly Appointments' }
-            },
-            scales: {
-                y: { beginAtZero: true }
-            }
+function initSpecializationChart() {
+    try {
+        // Get the canvas element
+        const ctx = document.getElementById('specializationChart');
+        
+        // Check if canvas exists
+        if (!ctx) {
+            console.warn('Specialization chart canvas not found');
+            return;
         }
-    });
+
+        // Destroy previous chart instance if it exists
+        if (window.specializationChart instanceof Chart) {
+            window.specializationChart.destroy();
+        }
+
+        // Create new chart instance
+        window.specializationChart = new Chart(ctx.getContext('2d'), {
+            type: 'doughnut',
+            data: {
+                labels: ['Cardiology', 'Neurology', 'General Medicine'],
+                datasets: [{
+                    data: [45, 35, 20],
+                    backgroundColor: [
+                        '#06b6d4', // Cyan
+                        '#fde047', // Yellow
+                        '#f472b6'  // Pink
+                    ],
+                    borderColor: '#ffffff',
+                    borderWidth: 2,
+                    hoverOffset: 10,
+                    hoverBorderWidth: 3
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { 
+                        display: false // We're using HTML legend instead
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const label = context.label || '';
+                                const value = context.raw || 0;
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = Math.round((value / total) * 100);
+                                return `${label}: ${value} (${percentage}%)`;
+                            }
+                        },
+                        displayColors: true,
+                        usePointStyle: true,
+                        padding: 12,
+                        bodyFont: {
+                            size: 14
+                        }
+                    }
+                },
+                animation: {
+                    animateScale: true,
+                    animateRotate: true
+                },
+                elements: {
+                    arc: {
+                        borderRadius: 4
+                    }
+                }
+            }
+        });
+
+        // Update the legend with real data
+        updateSpecializationLegend(window.specializationChart);
+
+    } catch (error) {
+        console.error('Failed to initialize specialization chart:', error);
+    }
 }
 
-function initSpecializationChart() {
-    const ctx = document.getElementById('specializationChart').getContext('2d');
-    new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: ['Cardiology', 'Neurology', 'General Medicine'],
-            datasets: [{
-                data: [45, 35, 20],
-                backgroundColor: [
-                    '#06b6d4', // Cyan
-                    '#fde047', // Yellow
-                    '#f472b6'  // Pink
-                ],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            cutout: '70%',
-            plugins: {
-                legend: { display: false },
-                tooltip: { enabled: true }
-            }
-        }
-    });
+// Helper function to update HTML legend
+function updateSpecializationLegend(chart) {
+    const legendContainer = document.querySelector('.specialization-card .legend');
+    if (!legendContainer) return;
+
+    const data = chart.data.datasets[0].data;
+    const total = data.reduce((a, b) => a + b, 0);
+    
+    legendContainer.innerHTML = chart.data.labels.map((label, i) => {
+        const value = data[i];
+        const percentage = Math.round((value / total) * 100);
+        const color = chart.data.datasets[0].backgroundColor[i];
+        
+        return `
+            <div class="legend-item">
+                <span class="legend-dot" style="background-color: ${color}"></span>
+                <span class="legend-label">${label}</span>
+                <span class="legend-value">${value} (${percentage}%)</span>
+            </div>
+        `;
+    }).join('');
 }
 
 function initCalendar() {
+
+   if (typeof FullCalendar === 'undefined') {
+        console.error('FullCalendar library not loaded');
+        return;
+    }
+
     const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) return;
+
     const dateAppointmentsList = document.getElementById('date-appointments-list');
     const selectedDateSpan = document.getElementById('selected-date');
 
@@ -1661,4 +1725,3 @@ function renderDateAppointments(appointments) {
         container.insertAdjacentHTML('beforeend', appointmentHTML);
     });
 }
-

@@ -104,6 +104,7 @@ export default class Appointments {
             return [];
         }
     }
+    
 async checkDoctorAvailability(doctorId, requestedDate) {
     try {
         // Get doctor's max appointments in one query
@@ -144,7 +145,7 @@ async checkDoctorAvailability(doctorId, requestedDate) {
         return { available: false, error: error.message };
     }
     }
-    
+
     showLimitedAppointmentOnline() {
         const detailsHtml = `
             <h3>Appointment Limit Reached</h3>
@@ -174,4 +175,45 @@ async checkDoctorAvailability(doctorId, requestedDate) {
 
         return detailsModal;
     }
+    async cancel(appointment_id) {
+        console.log('Attempting to cancel appointment:', appointmentId);
+        console.log('Supabase client:', supabase);  // Should show initialized client
+        console.log('supabase.from exists:', !!supabase.from);  // Should be true
+        try {
+            appointment_id = this.data.appointment_id;
+            const { data: user, error } = await supabase
+                .from('appointments')
+                .update({ status: 'cancelled', cancelled_by: 'User itself' }
+                .eq('appointment_id', appointment_id)
+                )
+        
+        return { success: true, data };
+        } catch (error) {
+            console.error('Error cancelling appointment:', error);
+            return { error: error.message };
+        }
+    }
+    async getListAppointments() {
+        try {
+            const {data: appointments, error} = await supabase
+                .from('appointments')
+                .select('*, staffs:doctor_id(full_name), patients:patient_id(full_name)')
+                .order('appointment_date_time', { ascending: true });
+            if (appointments){
+                return appointments.map(appointment => ({
+                    ...appointment,
+                    appointment_date_time: new Date(appointment.appointment_date_time).toLocaleString(),
+                    doctor_name: appointment.doctor?.full_name || 'Unknown'
+                }));
+            }
+            if (error) {
+                console.error('Error fetching appointments:', error);
+                return [];
+            }
+        }catch (error) {
+                console.error('Error fetching appointments:', error);
+                return [];
+            }
+        }
+
 }

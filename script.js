@@ -182,6 +182,7 @@ async function populateMyAppointments() {
         console.error('Error in Populate My Appointments', error);
         throw error;
     }
+    
 }
 departmentSelect?.addEventListener('change', function() {
     console.log('Department changed to:', departmentSelect.value);
@@ -356,18 +357,22 @@ function updateUIForLoggedInUser(user) {
     if (user.role === 'user') {
         document.getElementById('book-link').style.display = 'block';
         document.getElementById('view-link').style.display = 'block';
-    }
+        const adminSection = document.getElementById('admin-section');
+        if (adminSection) adminSection.style.display = 'none';
 
+        // Hide booking and view sections until user clicks nav
+        document.getElementById('book-section').style.display = 'none';
+        document.getElementById('view-section').style.display = 'none';
+
+        // Hide login modal if open
+        if (loginModal) loginModal.classList.remove('active');
+    } 
+    else if( user.role === 'admin') {
+        window.location.href = 'admin1.html';
     // Hide admin section for user role
-    const adminSection = document.getElementById('admin-section');
-    if (adminSection) adminSection.style.display = 'none';
-
-    // Hide booking and view sections until user clicks nav
-    document.getElementById('book-section').style.display = 'none';
-    document.getElementById('view-section').style.display = 'none';
-
-    // Hide login modal if open
-    if (loginModal) loginModal.classList.remove('active');
+        const adminSection = document.getElementById('admin-section');
+        if (adminSection) adminSection.style.display = 'flex';
+    }
 }
 document.getElementById('book-link')?.addEventListener('click', function(e) {
     e.preventDefault();
@@ -503,7 +508,7 @@ document.getElementById('hero-book-btn')?.addEventListener('click', () => {
             input?.addEventListener('change', updatePreview);
         });
 
-        filterStatus?.addEventListener('change', renderAppointments);
+        filterStatus?.addEventListener('click', renderAppointments);
         refreshAppointments?.addEventListener('click', renderAppointments);
 
         printAppointmentBtn?.addEventListener('click', () => window.print());
@@ -694,10 +699,10 @@ async function handleBookingSubmit(e) {
             </span>
         </div>
         <div class="appointment-actions">
-            ${status === 'upcoming' || status === 'scheduled' ? 
-                `<button class="btn btn-danger cancel-btn" data-id="${appointment.id}">Cancel</button>` : ''}
-            <button class="btn btn-outline details-btn" data-id="${appointment.id}">Details</button>
-        </div>
+        ${status === 'upcoming' || status === 'scheduled' ? 
+            `<button class="btn btn-dangxer cancel-btn" data-id="${appointment.id}">Cancel</button>` : ''}
+        <button class="btn btn-outline details-btn" data-id="${appointment.id}">Details</button>
+    </div>
     `;
             
             appointmentsList.appendChild(appointmentCard);
@@ -731,7 +736,7 @@ function setupAppointmentEventListeners() {
             showAppointmentDetails(appointmentId);
         });
     });
-}
+    }
     
     function showAppointmentDetails(appointmentId) {
         // appointments should be the latest array used in renderAppointments
@@ -775,6 +780,33 @@ function setupAppointmentEventListeners() {
                 detailsModal.remove();
             });
         }
+}
+
+async function cancelAppointment(appointmentId) {
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+
+    try {
+        const app = new Appointments();
+        const result = await app.cancel(appointmentId);
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        // Update UI after successful cancellation
+        const appointmentIndex = appointments.findIndex(
+            app => String(app.id) === String(appointmentId)
+        );
+        
+        if (appointmentIndex !== -1) {
+            appointments[appointmentIndex].status = 'cancelled';
+            renderAppointments();
+            alert('Appointment cancelled successfully!');
+        }
+    } catch (error) {
+        console.error('Cancellation failed:', error);
+        alert('Failed to cancel appointment: ' + error.message);
+    }
 }
     // Helper function to find doctor by name
     function findDoctorByName(name) {
