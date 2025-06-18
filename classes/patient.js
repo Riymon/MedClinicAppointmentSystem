@@ -1,101 +1,162 @@
 import supabase from './database.js';
 
 export default class Patient {
-    constructor(user_id, full_name, email, gender, contact_no, address, date_of_birth ) {
+    constructor(user_id, full_name, email, gender, contact_no, address, date_of_birth) {
         this.data = {
             user_id: user_id,
             full_name: full_name,
             email: email,
             contact_no: contact_no,
             address: address,
-            date_of_birth: date_of_birth,
+            date_of_birth: date_of_birth || '2000-01-01',
             gender: gender,
             updated_at: ''
         };
     }
+
     async getPatientIDByName(full_name) {
         try {
-            // First check if patient exists
-            let { data, error } = await supabase 
+            const { data, error } = await supabase 
                 .from('patients')
                 .select('patient_id')
-                .eq('full_name', full_name.value)
-                .single();
+                .eq('full_name', full_name)
+                .maybeSingle(); // Changed from single() to maybeSingle()
 
-                console.log(full_name.value);
-
-            return data.patient_id;    
+            if (error) {
+                console.error('Patient lookup error:', error);
+                return null;
+            }
+            return data?.patient_id || null;
         } catch (error) {
             console.error('Error:', error);
             return null;
         }
     }
+
     async insertData() {
         try {
-            const id = this.isPatientExist(this.data.full_name, this.data.date_of_birth);
-            if(!id){
-                 const { data, error } = await supabase
+            // First check if patient exists by name and email
+            const existingPatient = await this.getExistingPatient();
+            
+            if (existingPatient) {
+                console.log('Patient already exists, returning existing record');
+                return {
+                    data: existingPatient,
+                    patient_id: existingPatient.patient_id,
+                    isNew: false
+                };
+            }
+
+            // Patient doesn't exist, create new one
+            const { data, error } = await supabase
                 .from('patients')
                 .insert([{
                     user_id: this.data.user_id,
                     full_name: this.data.full_name,
-                    email: this.data.email,
                     contact_no: this.data.contact_no,
                     address: this.data.address,
                     date_of_birth: this.data.date_of_birth,
-                }]);
-            }
-            else {
-                alert("Patient Already Existed!");
-                return;
-            }
-            if (error) {
-                console.error('Insert error:', error);
-                alert("There was an error creating the patient record.");
-                return;
-            } (data) => {
-                console.log("Patient created successfully:", data);
-                alert("Patient record created successfully!");
-            }
-        }catch (error) {
-            console.error('Error:', error);
-            alert("An unexpected error occurred while creating the patient record.");
+                    gender: this.data.gender
+                }])
+
+            if (error) throw error;
+
+            console.log("Patient created successfully");
+            return {
+                data: data[0],
+                patient_id: data[0]?.patient_id,
+                isNew: true
+            };
+
+        } catch (error) {
+            console.error('Error in insertData:', error);
+            return { 
+                error: error.message,
+                details: 'Failed to create or find patient record'
+            };
         }
     }
-    async isPatientExist (full_name, date_of_birth) {
+
+    async getExistingPatient() {
         try {
             const { data, error } = await supabase
                 .from('patients')
-                .select('patient_id')
-                .eq('full_name', full_name)
-                .eq('date_of_birth', date_of_birth)
-                .single();
+                .select('*')
+                .eq('full_name', this.data.full_name)
+                .maybeSingle();
 
-            if (error) {
-                console.error('Error checking patient existence:', error);
-                return false;
-            }
-            return data ? true : false;
+            if (error) throw error;
+            return data;
         } catch (error) {
-            console.error('Unexpected error:', error);
-            return false;
+            console.error('Error checking patient existence:', error);
+            return null;
         }
     }
+
     async setPatientPhoneNumber(phone_number) {
-        const patient_id = await getPatientIDByName();
-        const { data, error } = await supabase
-            .from('patients')
-            .update({ contact_no: phone_number })
-            .eq('patient_id', patient_id);
-    
-        if (error) {    
+        try {
+            const patient_id = await this.getPatientIDByName(this.data.full_name);
+            if (!patient_id) {
+                throw new Error('Patient not found');
+            }
+
+            const { data, error } = await supabase
+                .from('patients')
+                .update({ contact_no: phone_number })
+                .eq('patient_id', patient_id)
+                .select();
+
+            if (error) throw error;
+            
+            if (data) {
+                console.log("Phone number set successfully:", data);
+                return { success: true, data };
+            }
+        } catch (error) {
             console.error('Update error:', error);
-            alert("There was an error setting the phone number.");
-            return;
-        }
-        if (data) {
-            alert("Phone number set successfully!");
-            console.log("Phone number set successfully:", data);
+            return { error: error.message };
         }
     }
+async getPatients(search, field, status) {
+    try {
+        let query = supabase.from('patients').select('*, users:user_id(email)');
+        
+        // Get the selected values from the dropdowns
+        const searchField = field?.value || 'all';
+        const statusValue = status?.value || '';
+        
+        // Apply search filter if search term exists
+        if (search) {
+            switch (searchField) {
+                case 'name':
+                    query = query.ilike('full_name', `%${search}%`);
+                    break;
+                case 'patient_id':
+                    query = query.eq('patient_id', search);
+                    break;
+                case 'phone':
+                    query = query.ilike('contact_no', `%${search}%`);
+                    break;
+                case 'email':
+                    query = query.ilike('email', `%${search}%`);
+                    break;
+     
+            }
+        }
+        
+        // Apply status filter if selected
+        if (statusValue) {
+            query = query.eq('status', statusValue);
+        }
+        
+        const { data, error } = await query;
+        
+        if (error) throw error;
+        
+        return data || []; // Always return an array
+    } catch(error) {
+        console.error('Error fetching patients:', error);
+        return []; // Return empty array on error
+    }
+}
 }

@@ -1,7 +1,6 @@
 import Appointments from './classes/appointments.js';
 import User from './classes/users.js';
 import supabase from './classes/database.js';
-import Patien from './classes/patient.js'; // Ensure this path is correct
 import Patient from './classes/patient.js';
 // Import Supabase client
 
@@ -552,91 +551,94 @@ function showSection(sectionId) {
         document.getElementById('preview-phone').textContent = phoneInput.value || 'Not provided';
     }
 
-    async function getPatientIDByName() {
-        try {
-            // First check if patient exists
-            let { data, error } = await supabase 
-                .from('patients')
-                .select('patient_id')
-                .eq('full_name', nameInput.value)
-                .single();
-
-                console.log(nameInput.value);
-
-            return data.patient_id;    
-        } catch (error) {
-            console.error('Error:', error);
-            return null;
-        }
-    }
 async function handleBookingSubmit(e) {
     e.preventDefault();
 
-     const user = new User();
-     const user_id = await user.getUserIDByUserEmail(emailInput.value);
-     const pat_id = await getPatientIDByName();
-
-        
-    if (!pat_id || !user_id) {
-        alert('Patient or user not found.');
+    // Validate required fields
+    if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
+        !nameInput.value || !emailInput.value || !phoneInput.value) {
+        alert('Please fill in all required fields');
         return;
     }
-    if (!pat_id){
-        alert(pat_id);
-         
 
-    }
-    if (!user_id){
-        alert(user_id)
-    }
-        // Validate required fields
-        if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
-            !nameInput.value || !emailInput.value || !phoneInput.value) {
-            alert('Please fill in all required fields');
-            return;
-        }   
-             // Create new appointment
-    const newAppointment = {
-        id: generateAppointmentId(),
-        department: departmentSelect.options[departmentSelect.selectedIndex].text,
-        doctor_id: Number(doctors_select.value), // Use the value, which should be the ID
-        date: dateInput.value,
-        patientid: pat_id,
-        purpose: reason,
-        contact_no: phoneInput,
-        full_name: nameInput
-    };
+    try {
+        const user = new User();
+        const reason = document.getElementById('reason').value;
         
-        // Add to appointments array
-        // appointments.unshift(newAppointment);
+        // Get user ID
+        const user_id = await user.getUserIDByUserEmail(emailInput.value);
+        if (!user_id) {
+            throw new Error('User not found. Please register first.');
+        }
+
+        // Create or get patient
+        const newPatient = new Patient(
+            user_id,
+            nameInput.value,
+            emailInput.value,
+            '', // gender
+            phoneInput.value,
+            '', // address
+            '2000-01-01' // default date of birth
+        );
         
-        // Update confirmation modal
-        document.getElementById('confirm-id').textContent = newAppointment.id;
-        document.getElementById('confirm-doctor').textContent = newAppointment.doctor;
-        document.getElementById('confirm-date').textContent = new Date(newAppointment.date).toLocaleDateString('en-US', { 
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
-        });
+        const patientResult = await newPatient.insertData();
+        if (patientResult.error) {
+            throw new Error('Patient error: ' + patientResult.error);
+        }
         
-        const app = new Appointments(newAppointment.id, newAppointment.patientid, user_id, 
-        newAppointment.doctor_id, newAppointment.date, 
-        "Online", newAppointment.purpose, "upcoming");
-        const patient = new Patient(user_id,newAppointment.full_name, '', newAppointment.contact_no, '', '');
-        patient.insertData();
-        
+        const pat_id = patientResult.patient_id;
+        if (!pat_id) {
+            throw new Error('Failed to get patient ID');
+        }
+
+        // Validate date
+
+        // Create appointment data
+        const appointmentData = {
+            patient_id: pat_id,
+            user_id: user_id,
+            staff_id: Number(doctors_select.value),
+            appointment_date_time: dateInput.value,
+            appointment_type: "Online",
+            purpose: reason,
+            status: "upcoming"
+        };
+
+        // Create and save appointment
+        const app = new Appointments(appointmentData);
         const result = await app.insertData();
-            if (result.error) {
-                app.showLimitedAppointmentOnline();
-            } else {
-                confirmationModal.classList.add('active');
-                 bookingForm.reset();
-                doctors_select.disabled = true;
-                dateInput.disabled = true;
-                // Update preview
-                updatePreview();
-                      // Update appointments list
-                await renderAppointments();
-            }
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        // Update confirmation modal
+        document.getElementById('confirm-id').textContent = result.data[0]?.appointment_id || 'N/A';
+        document.getElementById('confirm-doctor').textContent = doctors_select.options[doctors_select.selectedIndex].text;
+        document.getElementById('confirm-date').textContent = appointmentDate.toLocaleDateString('en-US', { 
+            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+        });
+
+        confirmationModal.classList.add('active');
+        bookingForm.reset();
+        doctors_select.disabled = true;
+        dateInput.disabled = true;
+        updatePreview();
+        await renderAppointments();
+
+    } catch (error) {
+        console.error('Booking failed:', error);
+        alert('Failed to book appointment: ' + error.message);
     }
+}
+
+// Helper function to format date for PostgreSQL timestamp without timezone
+function formatDateForPostgres(date) {
+    const pad = num => num.toString().padStart(2, '0');
+    return `${date.getFullYear()}-${pad(date.getMonth()+1)}-${pad(date.getDate())} ${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+}
     
     function generateAppointmentId() {
         const randomNum = Math.floor(Math.random() * 500) + 100;

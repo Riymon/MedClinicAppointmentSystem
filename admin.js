@@ -1,4 +1,5 @@
 import Appointments from "./classes/appointments.js";
+import Patient from "./classes/patient.js";
 
 // Make loadDashboard function available globally
 let loadDashboard;
@@ -203,38 +204,62 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function loadAppointmentsData() {
+async function loadAppointmentsData() {
     try {
-        const app = new Appointments();
-        const appointments = await app.getListAppointments();
+        const app = new Appointments(); // Create new instance
+        const search = document.getElementById('appointmentSearch')?.value || '';
+        const selection = document.getElementById('searchType')?.value || 'all';
+        const status = document.getElementById('statusFilter')?.value || '';
+        const date_filter = document.getElementById('dateFilter')?.value || '';
         
+        // Call the method properly
+        const appointments = await app.getListAppointments(search, selection, status, date_filter);
+        
+        // Render the appointments
         const tableBody = document.getElementById('appointmentsTableBody');
+        if (!tableBody) {
+            console.error('Appointments table body not found');
+            return;
+        }
+
         tableBody.innerHTML = appointments.map(appointment => `
             <tr>
-                <td>${appointment.patientName || appointment.patients?.full_name || 'N/A'}</td>
-                <td>${appointment.doctor || appointment.staffs?.full_name || 'N/A'}</td>
-                <td>${appointment.date || new Date(appointment.appointment_date_time).toLocaleDateString()}</td>
-                <td>${appointment.time || new Date(appointment.appointment_date_time).toLocaleTimeString()}</td>
-                <td>${appointment.type || appointment.appointment_type || 'N/A'}</td>
-                <td>${appointment.purpose || 'N/A'}</td>
+                <td>${appointment.appointment_id ?`APP-${String(appointment.appointment_id).padStart(4, '0')}` : 'N/A'}</td>
+                <td>${appointment.patient_id ? `PAT-${String(appointment.patient_id).padStart(4, '0')}` : 'N/A'}</td>
+                <td>${appointment.patientName}</td>
+                <td>${appointment.doctor}</td>
+                <td>${appointment.date}</td>
+                <td>${appointment.time}</td>
+                <td>${appointment.type}</td>
+                <td>${appointment.purpose}</td>
                 <td><span class="status-badge ${appointment.status}">${appointment.status}</span></td>
-                <td>${appointment.lastUpdated || 'N/A'}</td>
-                <td>${appointment.updatedBy || 'N/A'}</td>
+                <td>${appointment.updated_at || 'NA'}</td>
+                <td>${appointment.updated_by || 'NA'}</td>
                 <td>
-                    <button onclick="viewAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn view">👁️</button>
-                    <button onclick="editAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn edit">✏️</button>
-                    <button onclick="rescheduleAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn reschedule">📅</button>
-                    <button onclick="cancelAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn cancel">❌</button>
+                    <button onclick="viewAppointment(${appointment.id})" class="icon-btn view">👁️</button>
+                    <button onclick="editAppointment(${appointment.id})" class="icon-btn edit">✏️</button>
+                    <button onclick="rescheduleAppointment(${appointment.id})" class="icon-btn reschedule">📅</button>
+                    <button onclick="cancelAppointment(${appointment.id})" class="icon-btn cancel">❌</button>
                 </td>
             </tr>
         `).join('');
+
     } catch (error) {
         console.error('Error loading appointments:', error);
-        // Show error message to user
+        // Show error to user
+        const tableBody = document.getElementById('appointmentsTableBody');
+        if (tableBody) {
+            tableBody.innerHTML = `
+                <tr>
+                    <td colspan="10" class="error-message">
+                        Failed to load appointments. Please try again.
+                    </td>
+                </tr>
+            `;
+        }
     }
 }
-
-    function initializeAppointmentManagement() {
+function initializeAppointmentManagement() {
         // Load initial data
         loadAppointmentsData();
         
@@ -361,38 +386,6 @@ function loadAppointmentsSection() {
         // Initialize the appointment management features
         initializeAppointmentManagement();
 }
-async function loadAppointmentsData() {
-    try {
-        const app = new Appointments();
-        const appointments = await app.getListAppointments();
-        
-        const tableBody = document.getElementById('appointmentsTableBody');
-        tableBody.innerHTML = appointments.map(appointment => `
-            <tr>
-                <td>${appointment.appointment_id || appointment.patients?.id || 'N/A'}</td>
-                <td>${appointment.patient_id || appointment.patients?.id || 'N/A'}</td>
-                <td>${appointment.patientName || appointment.patients?.full_name || 'N/A'}</td>
-                <td>${appointment.doctor || appointment.staffs?.full_name || 'N/A'}</td>
-                <td>${appointment.date || new Date(appointment.appointment_date_time).toLocaleDateString()}</td>
-                <td>${appointment.time || new Date(appointment.appointment_date_time).toLocaleTimeString()}</td>
-                <td>${appointment.type || appointment.appointment_type || 'N/A'}</td>
-                <td>${appointment.purpose || 'N/A'}</td>
-                <td><span class="status-badge ${appointment.status}">${appointment.status}</span></td>
-                <td>${appointment.lastUpdated || 'N/A'}</td>
-                <td>${appointment.updatedBy || 'N/A'}</td>
-                <td>
-                    <button onclick="viewAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn view">👁️</button>
-                    <button onclick="editAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn edit">✏️</button>
-                    <button onclick="rescheduleAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn reschedule">📅</button>
-                    <button onclick="cancelAppointment(${appointment.id || appointment.appointment_id})" class="icon-btn cancel">❌</button>
-                </td>
-            </tr>
-        `).join('');
-    } catch (error) {
-        console.error('Error loading appointments:', error);
-        // Show error message to user
-    }
-}
 
     function openAppointmentModal(mode, appointmentId = null) {
         const modal = document.getElementById('appointmentModal');
@@ -516,7 +509,7 @@ async function loadAppointmentsData() {
                     <select id="searchType">
                         <option value="all">All Fields</option>
                         <option value="name">Name</option>
-                        <option value="id">Patient ID</option>
+                        <option value="patient_id">Patient ID</option>
                         <option value="phone">Phone</option>
                         <option value="email">Email</option>
                 </select>
@@ -524,8 +517,8 @@ async function loadAppointmentsData() {
                 <div class="filter-group">
                     <select id="statusFilter">
                         <option value="">All Status</option>
-                        <option value="active">Active</option>
-                        <option value="inactive">Inactive</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
                     </select>
                 </div>
             </div>
@@ -651,60 +644,72 @@ async function loadAppointmentsData() {
         });
     }
 
-    function loadPatientsData() {
-        // Simulated data - replace with actual API call
-        const patients = [
-            {
-                id: 1,
-                name: "John Doe",
-                age: 45,
-                gender: "Male",
-                phone: "555-0123",
-                email: "john@example.com",
-                bloodGroup: "O+",
-                lastVisit: "2024-03-15",
-                status: "active",
-                createdAt: "2024-01-15 10:00:00",
-                updatedBy: "Dr. Smith",
-                updatedAt: "2024-03-15 15:30:00"
-            },
-            {
-                id: 2,
-                name: "Jane Smith",
-                age: 32,
-                gender: "Female",
-                phone: "555-0124",
-                email: "jane@example.com",
-                bloodGroup: "A+",
-                lastVisit: "2024-03-18",
-                status: "active",
-                createdAt: "2024-02-01 09:15:00",
-                updatedBy: "Dr. Johnson",
-                updatedAt: "2024-03-18 14:20:00"
-            }
-        ];
+async function loadPatientsData() {
+    try {
+        const search = document.getElementById('patientSearch')?.value || '';
+        const stype = document.getElementById('searchType');
+        const status = document.getElementById('statusFilter');
 
+        const pat = new Patient();
+        const patients = await pat.getPatients(search, stype, status);
+        
+        // Debugging log
+        console.log('Patients data:', patients);
+        
         const patientsGrid = document.querySelector('.patients-grid');
-        patientsGrid.innerHTML = patients.map(patient => `
-            <div class="patient-card">
-                <div class="patient-info">
-                    <h3>${patient.name}</h3>
-                    <p>ID: PAT-${String(patient.id).padStart(4, '0')}</p>
-                    <p>Age: ${patient.age} | Gender: ${patient.gender}</p>
-                    <p>Blood Group: ${patient.bloodGroup}</p>
-                    <p>Phone: ${patient.phone}</p>
-                    <p>Last Visit: ${patient.lastVisit}</p>
-                    <p class="record-info">Created: ${patient.createdAt}</p>
-                    <p class="record-info">Last Updated: ${patient.updatedAt} by ${patient.updatedBy}</p>
-                    <span class="status-badge ${patient.status}">${patient.status}</span>
+        
+        if (!Array.isArray(patients)) {
+            console.error('Expected array but got:', patients);
+            throw new Error('Invalid data format received');
+        }
+        
+        if (patients.length === 0) {
+            patientsGrid.innerHTML = `
+                <div class="no-patients">
+                    <i class="icon-user"></i>
+                    <p>No patients found matching your criteria</p>
                 </div>
-                <div class="patient-actions">
-                    <button onclick="viewPatient(${patient.id})" class="action-btn">View Details</button>
-                    <button onclick="editPatient(${patient.id})" class="action-btn">Edit</button>
+            `;
+            return;
+        }
+
+        patientsGrid.innerHTML = patients.map(patient => {
+            // Calculate age from date_of_birth if available
+            const age = patient.date_of_birth 
+                ? new Date().getFullYear() - new Date(patient.date_of_birth).getFullYear() 
+                : 'N/A';
+                
+            return `
+                <div class="patient-card">
+                    <div class="patient-info">
+                        <h3>${patient.full_name || 'N/A'}</h3>
+                        <p>ID: ${patient.patient_id ? `PAT-${String(patient.patient_id).padStart(4, '0')}` : 'N/A'}</p>
+                        <p>Age: ${age} | Gender: ${patient.gender || 'N/A'}</p>
+                        <p>Phone: ${patient.contact_no || 'N/A'}</p>
+                        <p>Last Visit: ${patient.lastVisit}</p>
+                        <p class="record-info">Created: ${patient.created_at}</p>
+                        <p class="record-info">Last Updated: ${patient.updated_at} by ${patient.updated_by}</p>
+                        <p>Status: <span class="status-badge ${patient.status || 'unknown'}">${patient.status || 'Unknown'}</span></p>
+                    </div>
+                    <div class="patient-actions">
+                        <button onclick="viewPatient(${patient.patient_id || 'null'})" class="action-btn">View</button>
+                        <button onclick="editPatient(${patient.patient_id || 'null'})" class="action-btn">Edit</button>
+                    </div>
                 </div>
+            `;
+        }).join('');
+    } catch (error) {
+        console.error('Error loading patients:', error);
+        const patientsGrid = document.querySelector('.patients-grid');
+        patientsGrid.innerHTML = `
+            <div class="error-message">
+                <i class="icon-error"></i>
+                <p>Error loading patient data. Please try again later.</p>
+                <button onclick="loadPatientsData()" class="retry-btn">Retry</button>
             </div>
-        `).join('');
+        `;
     }
+}
 
     function openPatientModal(mode, patientId = null) {
         const modal = document.getElementById('patientModal');
@@ -915,10 +920,6 @@ async function loadAppointmentsData() {
     }
 
     function filterPatients() {
-        const searchTerm = document.getElementById('patientSearch').value.toLowerCase();
-        const status = document.getElementById('statusFilter').value;
-        
-        // Apply filters and update the grid
         loadPatientsData(); // This should be modified to use the filter parameters
     }
 
@@ -1659,18 +1660,69 @@ function updateSpecializationLegend(chart) {
 }
 
 function initCalendar() {
+    try {
+        // Check if FullCalendar is loaded
+        if (typeof FullCalendar === 'undefined') {
+            // Attempt to dynamically load FullCalendar if not available
+            loadFullCalendar()
+                .then(() => {
+                    console.log('FullCalendar loaded successfully');
+                    initializeCalendar();
+                })
+                .catch(error => {
+                    console.error('Failed to load FullCalendar:', error);
+                    showCalendarError();
+                });
+            return;
+        }
+        
+        // If FullCalendar is already available
+        initializeCalendar();
+        
+    } catch (error) {
+        console.error('Calendar initialization error:', error);
+        showCalendarError();
+    }
+}
 
-   if (typeof FullCalendar === 'undefined') {
-        console.error('FullCalendar library not loaded');
+// Helper function to dynamically load FullCalendar
+function loadFullCalendar() {
+    return new Promise((resolve, reject) => {
+        // Check if already loaded
+        if (typeof FullCalendar !== 'undefined') {
+            resolve();
+            return;
+        }
+
+        // Load CSS
+        const cssLink = document.createElement('link');
+        cssLink.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css';
+        cssLink.rel = 'stylesheet';
+        document.head.appendChild(cssLink);
+
+        // Load JS
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js';
+        script.onload = resolve;
+        script.onerror = reject;
+        document.head.appendChild(script);
+    });
+}
+
+// Main calendar initialization
+function initializeCalendar() {
+    const calendarEl = document.getElementById('calendar');
+    if (!calendarEl) {
+        console.warn('Calendar element not found');
         return;
     }
 
-    const calendarEl = document.getElementById('calendar');
-    if (!calendarEl) return;
-
     const dateAppointmentsList = document.getElementById('date-appointments-list');
     const selectedDateSpan = document.getElementById('selected-date');
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 
+                   'July', 'August', 'September', 'October', 'November', 'December'];
 
+    // Initialize calendar
     const calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: [FullCalendar.dayGridPlugin, FullCalendar.interactionPlugin],
         initialView: 'dayGridMonth',
@@ -1679,49 +1731,88 @@ function initCalendar() {
             center: 'title',
             right: 'dayGridMonth,dayGridWeek,dayGridDay'
         },
+        initialDate: new Date(),
+        navLinks: true, // can click day/week names to navigate views
+        editable: false,
+        dayMaxEvents: true, // allow "more" link when too many events
+        dayCellContent: function(arg) {
+            // Customize day cell content
+            return { html: '<div class="fc-day-number">' + arg.dayNumberText + '</div>' };
+        },
         dateClick: function(info) {
-            const clickedDate = new Date(info.dateStr);
-            const formattedDate = `${months[clickedDate.getMonth()]} ${clickedDate.getDate()}`;
-            
-            // Update the "Today" card and selected date display
-            document.querySelector('.stat-card.today .stat-value').textContent = formattedDate;
-            if (selectedDateSpan) {
-                selectedDateSpan.textContent = formattedDate;
-            }
-            
-            // Filter and display appointments
-            const filteredAppointments = window.appointments ? window.appointments.filter(app => 
-                app.date === info.dateStr
-            ) : [];
-            
-            renderDateAppointments(filteredAppointments);
+            handleDateClick(info, months, dateAppointmentsList, selectedDateSpan);
+        },
+        datesSet: function(info) {
+            // You could load appointments for the visible date range here
         }
     });
 
     calendar.render();
+    window.calendarInstance = calendar; // Store for later access
 }
 
-function renderDateAppointments(appointments) {
-    const container = document.getElementById('date-appointments-list');
-    container.innerHTML = '';
+// Handle date click events
+function handleDateClick(info, months, dateAppointmentsList, selectedDateSpan) {
+    const clickedDate = new Date(info.dateStr);
+    const formattedDate = `${months[clickedDate.getMonth()]} ${clickedDate.getDate()}`;
+    
+    // Update UI
+    document.querySelector('.stat-card.today .stat-value').textContent = formattedDate;
+    if (selectedDateSpan) {
+        selectedDateSpan.textContent = formattedDate;
+    }
+    
+    // Filter and display appointments
+    const filteredAppointments = window.appointments ? window.appointments.filter(app => {
+        const appDate = new Date(app.date || app.appointment_date_time).toISOString().split('T')[0];
+        return appDate === info.dateStr;
+    }) : [];
+    
+    renderDateAppointments(filteredAppointments, dateAppointmentsList);
+}
 
+// Render appointments for selected date
+function renderDateAppointments(appointments, container) {
+    if (!container) return;
+    
     if (appointments.length === 0) {
-        container.innerHTML = `<div class="text-muted">No appointments for this date</div>`;
+        container.innerHTML = `
+            <div class="no-appointments">
+                <i class="icon-calendar-empty"></i>
+                <p>No appointments scheduled</p>
+            </div>
+        `;
         return;
     }
 
-    appointments.forEach(appointment => {
-        const appointmentHTML = `
-            <div class="appointment-item">
-                <div>
-                    <div class="font-medium">${appointment.doctor}</div>
-                    <div class="appointment-time">${appointment.time}</div>
-                </div>
-                <span class="appointment-status status-${appointment.status}">
+    container.innerHTML = appointments.map(appointment => `
+        <div class="appointment-item ${appointment.status}">
+            <div class="appointment-time">
+                ${appointment.time || new Date(appointment.appointment_date_time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+            </div>
+            <div class="appointment-details">
+                <div class="appointment-patient">${appointment.patientName || appointment.patients?.full_name || 'N/A'}</div>
+                <div class="appointment-purpose">${appointment.purpose || 'N/A'}</div>
+            </div>
+            <div class="appointment-status">
+                <span class="status-badge ${appointment.status}">
                     ${appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                 </span>
             </div>
+        </div>
+    `).join('');
+}
+
+// Show error state if calendar fails to load
+function showCalendarError() {
+    const calendarEl = document.getElementById('calendar');
+    if (calendarEl) {
+        calendarEl.innerHTML = `
+            <div class="calendar-error">
+                <i class="icon-error"></i>
+                <p>Calendar could not be loaded. Please refresh the page.</p>
+                <button onclick="initCalendar()" class="retry-btn">Retry</button>
+            </div>
         `;
-        container.insertAdjacentHTML('beforeend', appointmentHTML);
-    });
+    }
 }

@@ -3,10 +3,9 @@ import supabase from './database.js';
 
 export default class Appointments {
     
-    constructor(appointment_id, patient_id, user_id, doctor_id,
+    constructor(patient_id, user_id, doctor_id,
                  appointment_date, appointment_type, purpose, status){
                     this.data = {
-                        appointment_id: appointment_id,
                         patient_id: patient_id, 
                         user_id: user_id,
                         doctor_id: doctor_id,
@@ -17,49 +16,30 @@ export default class Appointments {
                         count: 0
                     }
                 }
-    async insertData() {
+ async insertData() {
     try {
-        // First check doctor availability based only on daily max appointments
-        const dateOnly = new Date(this.data.appointment_date).toISOString().split('T')[0];
-        const availability = await this.checkDoctorAvailability(
-            this.data.doctor_id,
-            dateOnly
-        );
-        
-        if (!availability.available) {
-            alert(availability.reason || "Doctor cannot accept more appointments today");
-            return { error: availability.reason || "Not available" };
+        // Validate all required fields
+        if (!this.data.patient_id || !this.data.user_id || !this.data.staff_id || !this.data.appointment_date) {
+            throw new Error('Missing required appointment fields');
         }
-        
-        // Proceed with insertion
+
         const { data, error } = await supabase
             .from('appointments')
             .insert([{
-                appointment_id: this.data.appointment_id,
                 patient_id: this.data.patient_id,
                 user_id: this.data.user_id,
-                doctor_id: this.data.doctor_id,
+                staff_id: this.data.staff_id,
                 appointment_date_time: this.data.appointment_date,
                 appointment_type: this.data.appointment_type,
                 purpose: this.data.purpose,
-                status: 'upcoming'
+                status: this.data.status,
             }])
             .select();
-        
+
         if (error) throw error;
-        
-        alert(`Appointment created successfully!`);
-        return { 
-            data: data[0], 
-            availability: {
-                count: availability.count + 1,
-                maxAllowed: availability.maxAllowed
-            }
-        };
-        
+        return { data };
     } catch (error) {
-        console.error('Insert error:', error);
-        alert("Error creating appointment: " + error.message);
+        console.error('Appointment insert error:', error);
         return { error: error.message };
     }
 }
@@ -183,9 +163,9 @@ async checkDoctorAvailability(doctorId, requestedDate) {
             appointment_id = this.data.appointment_id;
             const { data: user, error } = await supabase
                 .from('appointments')
-                .update({ status: 'cancelled', cancelled_by: 'User itself' }
+                .update({ status: 'cancelled', cancelled_by: 'User itself' })
                 .eq('appointment_id', appointment_id)
-                )
+                
         
         return { success: true, data };
         } catch (error) {
@@ -193,27 +173,75 @@ async checkDoctorAvailability(doctorId, requestedDate) {
             return { error: error.message };
         }
     }
-    async getListAppointments() {
-        try {
-            const {data: appointments, error} = await supabase
-                .from('appointments')
-                .select('*, staffs:doctor_id(full_name), patients:patient_id(full_name)')
-                .order('appointment_date_time', { ascending: true });
-            if (appointments){
-                return appointments.map(appointment => ({
-                    ...appointment,
-                    appointment_date_time: new Date(appointment.appointment_date_time).toLocaleString(),
-                    doctor_name: appointment.doctor?.full_name || 'Unknown'
-                }));
-            }
-            if (error) {
-                console.error('Error fetching appointments:', error);
-                return [];
-            }
-        }catch (error) {
-                console.error('Error fetching appointments:', error);
-                return [];
+async getListAppointments(search, selection, status, date) {
+    try {
+        // Initialize base query
+        let query = supabase
+            .from('appointments')
+            .select(`
+                *,
+                staffs:doctor_id(full_name, specialization),
+                patients:patient_id(full_name, contact_no)
+            `);
+
+        // Apply search filters
+        if (search && search.trim() !== '') {
+            switch(selection) {
+                case 'patient':
+                    query = query.ilike('patients.full_name', `%${search}%`);
+                    break;
+                case 'doctor':
+                    query = query.ilike('staffs.full_name', `%${search}%`);
+                    break;
+                case 'all':
+                    query = query.or(
+                        `patients.full_name.ilike.%${search}%,staffs.full_name.ilike.%${search}%`
+                    );
+                    break;
+                default:
+                    break;
             }
         }
 
+        // Apply status filter
+        if (status && status.trim() !== '') {
+            query = query.eq('status', status);
+        }
+
+        // Apply date filter
+        if (date && date.trim() !== '') {
+            const dateObj = new Date(date);
+            const startOfDay = new Date(dateObj.setHours(0, 0, 0, 0)).toISOString();
+            const endOfDay = new Date(dateObj.setHours(23, 59, 59, 999)).toISOString();
+            
+            query = query.gte('appointment_date_time', startOfDay)
+                         .lte('appointment_date_time', endOfDay);
+        }
+
+        // Execute the query
+        const { data, error } = await query;
+
+        if (error) throw error;
+
+        // Transform the data for the frontend
+        return data.map(appointment => ({
+            ...appointment,
+            id: appointment.appointment_id,
+            patientName: appointment.patients?.full_name || 'N/A',
+            doctor: appointment.staffs?.full_name || 'N/A',
+            date: new Date(appointment.appointment_date_time).toLocaleDateString(),
+            time: new Date(appointment.appointment_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            type: appointment.appointment_type,
+            purpose: appointment.purpose,
+            status: appointment.status,
+            lastUpdated: appointment.updated_at ? new Date(appointment.updated_at).toLocaleString() : 'N/A',
+            updatedBy: appointment.updated_by || 'N/A'
+        }));
+
+    } catch (error) {
+        console.error('Error in getListAppointments:', error);
+        return []; // Return empty array on error
+    }
+}
+        
 }
