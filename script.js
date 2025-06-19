@@ -342,6 +342,7 @@ loginForm?.addEventListener('submit', async function (e) {
     }
 });
 
+
 function updateUIForLoggedInUser(user) {
     // Hide login/register, show greeting and logout
     if (loginBtn) loginBtn.style.display = 'none';
@@ -396,13 +397,6 @@ function showSection(sectionId) {
     const target = document.getElementById(sectionId);
     if (target) target.style.display = 'block';
 }
-// Handle logout
-document.getElementById('logoutBtn')?.addEventListener('click', function () {
-    supabase.auth.signOut();
-    
-    sessionStorage.removeItem('loggedInUser');
-    resetUIForLoggedOutUser();
-});
 
 function resetUIForLoggedOutUser() {
     document.getElementById('userGreeting').style.display = 'none';
@@ -436,18 +430,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
 // Event listener for "Book an Appointment" button
-heroBookBtn.addEventListener('click', function() {
-    if (!isLoggedIn()) {
-        alert('Please log in or register first.');
-        loginModal.classList.add('active');
-    } else {
-        showSection('book-section');
-        document.querySelectorAll('nav a').forEach(navLink => navLink.classList.remove('active'));
-        document.getElementById('book-link').classList.add('active');
-    }
-});
-
-        
         // Auth buttons
         document.getElementById('login-btn')?.addEventListener('click', () => {
             document.getElementById('login-modal').classList.add('active');
