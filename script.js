@@ -905,7 +905,47 @@ async function cancelAppointment(appointmentId) {
             alert('Invalid admin credentials');
         }
     }
+    document.getElementById('logout-btn')?.addEventListener('click', async function() {
+        try {
+            // 1. Sign out from Supabase
+            const { error } = await supabase.auth.signOut();
+            if (error) throw error;
+            
+            // 2. Clear all storage
+            sessionStorage.removeItem('loggedInUser');
+            localStorage.removeItem('sb-user-data');
+            
+            loginBtn.style.display = 'block';
+            registerBtn.style.display = 'block';
+            logoutBtn.style.display = 'none';
+            userGreeting.style.display = 'none';
+            
+            // 4. Hide all sections except home
+            sections.forEach(section => {
+                section.style.display = 'none';
+            });
+            document.getElementById('home-section').style.display = 'block';
+            
+            // 5. Force page reload to ensure clean state
+            window.location.reload();
+            
+        } catch (error) {
+            console.error('Logout failed:', error);
+            alert('Logout failed. Please try again.');
+        }
+    });
 
+function isLoggedIn() {
+    const userData = sessionStorage.getItem('loggedInUser');
+    if (!userData) return false;
+    
+    try {
+        const user = JSON.parse(userData);
+        return !!(user && user.user_id);
+    } catch {
+        return false;
+    }
+}
     function logoutAdmin() {
         // Show all sections again
         document.querySelector('nav').style.display = 'flex';
