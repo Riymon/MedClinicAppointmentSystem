@@ -551,88 +551,97 @@ function showSection(sectionId) {
         document.getElementById('preview-phone').textContent = phoneInput.value || 'Not provided';
     }
 
-async function handleBookingSubmit(e) {
-    e.preventDefault();
+    async function handleBookingSubmit(e) {
+        e.preventDefault();
 
-    // Validate required fields
-    if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
-        !nameInput.value || !emailInput.value || !phoneInput.value) {
-        alert('Please fill in all required fields');
-        return;
+        // Validate required fields
+        if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
+            !nameInput.value || !phoneInput.value) {
+            alert('Please fill in all required fields');
+            return;
+        }
+
+        try {
+            const user = new User();
+            const reason = document.getElementById('reason').value;
+            
+            // Get user ID
+            const user_id = await user.getUserIDByUserEmail(emailInput.value);
+            if (!user_id) {
+                throw new Error('User not found. Please register first.');
+            }
+
+            // Create or get patient
+            const newPatient = new Patient(
+                user_id,
+                nameInput.value,
+                emailInput.value,
+                '', // gender
+                phoneInput.value,
+                '', // address
+                '2000-01-01' // default date of birth
+            );
+            
+            const patientResult = await newPatient.insertData();
+            if (patientResult.error) {
+                throw new Error('Patient error: ' + patientResult.error);
+            }
+            
+            const pat_id = patientResult.patient_id;
+            if (!pat_id) {
+                throw new Error('Failed to get patient ID');
+            }
+
+            // Create appointment data
+            const appointmentData = {
+                patient_id: pat_id,
+                user_id: user_id,
+                doctor_id: Number(doctors_select.value),
+                appointment_date: dateInput.value,
+                appointment_type: "Online",
+                purpose: reason,
+                status: "upcoming"
+            };
+
+            // Create and save appointment
+            const app = new Appointments(
+                appointmentData.patient_id, 
+                appointmentData.user_id,
+                appointmentData.doctor_id,
+                appointmentData.appointment_date,
+                appointmentData.appointment_type,
+                appointmentData.purpose,
+                appointmentData.status
+            );
+            
+            const result = await app.insertData();
+            
+            if (result.error) {
+                throw new Error(result.error);
+            }
+
+            // Update confirmation modal - MOVED THIS AFTER APPOINTMENT CREATION
+            document.getElementById('confirm-id').textContent = result.data[0]?.appointment_id || 'N/A';
+            document.getElementById('confirm-doctor').textContent = doctors_select.options[doctors_select.selectedIndex].text;
+            
+            const appointmentDate = new Date(dateInput.value);
+            document.getElementById('confirm-date').textContent = appointmentDate.toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+
+            confirmationModal.classList.add('active');
+            bookingForm.reset();
+            doctors_select.disabled = true;
+            dateInput.disabled = true;
+            updatePreview();
+            await renderAppointments();
+
+        } catch (error) {
+            console.error('Booking failed:', error);
+            alert('Failed to book appointment: ' + error.message);
+        }
     }
-
-    try {
-        const user = new User();
-        const reason = document.getElementById('reason').value;
-        
-        // Get user ID
-        const user_id = await user.getUserIDByUserEmail(emailInput.value);
-        if (!user_id) {
-            throw new Error('User not found. Please register first.');
-        }
-
-        // Create or get patient
-        const newPatient = new Patient(
-            user_id,
-            nameInput.value,
-            emailInput.value,
-            '', // gender
-            phoneInput.value,
-            '', // address
-            '2000-01-01' // default date of birth
-        );
-        
-        const patientResult = await newPatient.insertData();
-        if (patientResult.error) {
-            throw new Error('Patient error: ' + patientResult.error);
-        }
-        
-        const pat_id = patientResult.patient_id;
-        if (!pat_id) {
-            throw new Error('Failed to get patient ID');
-        }
-
-        // Validate date
-
-        // Create appointment data
-        const appointmentData = {
-            patient_id: pat_id,
-            user_id: user_id,
-            staff_id: Number(doctors_select.value),
-            appointment_date_time: dateInput.value,
-            appointment_type: "Online",
-            purpose: reason,
-            status: "upcoming"
-        };
-
-        // Create and save appointment
-        const app = new Appointments(appointmentData);
-        const result = await app.insertData();
-        
-        if (result.error) {
-            throw new Error(result.error);
-        }
-
-        // Update confirmation modal
-        document.getElementById('confirm-id').textContent = result.data[0]?.appointment_id || 'N/A';
-        document.getElementById('confirm-doctor').textContent = doctors_select.options[doctors_select.selectedIndex].text;
-        document.getElementById('confirm-date').textContent = appointmentDate.toLocaleDateString('en-US', { 
-            weekday: 'long', year: 'numeric', month: 'long', day: 'numeric',
-            hour: '2-digit', minute: '2-digit'
-        });
-
-        confirmationModal.classList.add('active');
-        bookingForm.reset();
-        doctors_select.disabled = true;
-        dateInput.disabled = true;
-        updatePreview();
-        await renderAppointments();
-
-    } catch (error) {
-        console.error('Booking failed:', error);
-        alert('Failed to book appointment: ' + error.message);
-    }
-}
 
 // Helper function to format date for PostgreSQL timestamp without timezone
 function formatDateForPostgres(date) {
@@ -727,7 +736,7 @@ function formatDateForPostgres(date) {
 function setupAppointmentEventListeners() {
     document.querySelectorAll('.cancel-btn').forEach(btn => {
         btn.addEventListener('click', function() {
-            const appointmentId = this.getAttribute('data-id');
+            const appointmentId = this.getAttribute('data-id').textContent;
             cancelAppointment(appointmentId);
         });
     });

@@ -59,12 +59,18 @@ export default class Patient {
                     gender: this.data.gender
                 }])
 
+            const query = supabase.from('patients')
+                    .select('patient_id')
+                    .eq('full_name', data.full_name)
+                    .eq('user_id', data.user_id)
+                    .eq('contact_no', data.contact_no)
+                    
             if (error) throw error;
 
             console.log("Patient created successfully");
             return {
                 data: data[0],
-                patient_id: data[0]?.patient_id,
+                patient_id: query.patient_id,
                 isNew: true
             };
 

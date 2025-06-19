@@ -19,16 +19,12 @@ export default class Appointments {
  async insertData() {
     try {
         // Validate all required fields
-        if (!this.data.patient_id || !this.data.user_id || !this.data.staff_id || !this.data.appointment_date) {
-            throw new Error('Missing required appointment fields');
-        }
-
         const { data, error } = await supabase
             .from('appointments')
             .insert([{
                 patient_id: this.data.patient_id,
                 user_id: this.data.user_id,
-                staff_id: this.data.staff_id,
+                doctor_id: this.data.doctor_id,
                 appointment_date_time: this.data.appointment_date,
                 appointment_type: this.data.appointment_type,
                 purpose: this.data.purpose,
