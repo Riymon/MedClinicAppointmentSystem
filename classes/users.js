@@ -2,13 +2,14 @@ import supabase from './database.js';
 
 export default class User {
 
-    constructor(full_name, email, password, contact_no, role){
+    constructor(full_name, email, password, contact_no, role,status){
         this.data = {
             full_name: full_name,
             email: email,
             password: password,
             contact_no: contact_no,
             role: role,
+            status: status,
             update_at: ''
         }
     }
@@ -22,7 +23,8 @@ export default class User {
                 email: this.data.email,
                 password: this.data.password,
                 contact_no: this.data.contact_no,
-                role: this.data.role
+                role: this.data.role,
+                status: this.data.status
             }]);
 
              
@@ -77,7 +79,7 @@ async login(email, password) {
     try {
         const { data, error } = await supabase
             .from('user')
-            .select('email, password, role')
+            .select('email, password, role, status')
             .eq('email', email)
             .eq('password', password)
             .single();
@@ -91,4 +93,32 @@ async login(email, password) {
         return null;
     }
 }
+ async isBanned() {
+        const detailsHtml = `
+            <h3>Account Problem</h3>
+            <div class="appointment-details">
+                <p><strong>Sorry! </strong>your Account is currently not Available.</p>
+                <p>Please contact us in the contact page to assist you.</p>
+            </div>
+        `;
+
+        // Create a modal for details
+        const detailsModal = document.createElement('div');
+        detailsModal.className = 'modal active';
+        detailsModal.innerHTML = `
+            <div class="modal-content">
+                <span class="close-modal">&times;</span>
+                ${detailsHtml}
+            </div>
+        `;
+
+        document.body.appendChild(detailsModal);
+
+        // Add close event
+        detailsModal.querySelector('.close-modal').addEventListener('click', () => {
+            detailsModal.remove();
+        });
+
+        return detailsModal;
+    }
 }

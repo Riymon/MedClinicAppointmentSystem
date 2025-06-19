@@ -318,13 +318,19 @@ loginForm?.addEventListener('submit', async function (e) {
         const user = new User();
         const valid = await user.login(email,password);
 
+        if(valid.status === 'Banned'){
+            user.isBanned();
+            return;
+        }
+
         if(!valid){
            return;
         } else {
            sessionStorage.setItem('loggedInUser', JSON.stringify({
                 user_id: valid.user_id,
                 email: valid.email,
-                role: valid.role
+                role: valid.role,
+                status: valid.status
         }));
             console.log(JSON.parse(sessionStorage.getItem('loggedInUser')));
             updateUIForLoggedInUser(valid);
@@ -335,6 +341,18 @@ loginForm?.addEventListener('submit', async function (e) {
         alert('Login failed. Please try again.');
     }
 });
+
+function isLoggedIn() {
+    const userData = sessionStorage.getItem('loggedInUser');
+    if (!userData) return false;
+    
+    try {
+        const user = JSON.parse(userData);
+        return !!(user && user.user_id);
+    } catch {
+        return false;
+    }
+}
 
 function updateUIForLoggedInUser(user) {
     // Hide login/register, show greeting and logout
@@ -430,18 +448,6 @@ document.addEventListener('DOMContentLoaded', async function () {
 });
 
 // Event listener for "Book an Appointment" button
-heroBookBtn.addEventListener('click', function() {
-    if (!isLoggedIn()) {
-        alert('Please log in or register first.');
-        loginModal.classList.add('active');
-    } else {
-        showSection('book-section');
-        document.querySelectorAll('nav a').forEach(navLink => navLink.classList.remove('active'));
-        document.getElementById('book-link').classList.add('active');
-    }
-});
-
-        
         // Auth buttons
         document.getElementById('login-btn')?.addEventListener('click', () => {
             document.getElementById('login-modal').classList.add('active');
