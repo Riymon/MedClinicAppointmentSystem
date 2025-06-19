@@ -318,13 +318,19 @@ loginForm?.addEventListener('submit', async function (e) {
         const user = new User();
         const valid = await user.login(email,password);
 
+        if(valid.status === 'Banned'){
+            user.isBanned();
+            return;        
+        }
+
         if(!valid){
            return;
         } else {
            sessionStorage.setItem('loggedInUser', JSON.stringify({
                 user_id: valid.user_id,
                 email: valid.email,
-                role: valid.role
+                role: valid.role,
+                status: valid.status
         }));
             console.log(JSON.parse(sessionStorage.getItem('loggedInUser')));
             updateUIForLoggedInUser(valid);
