@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 role = 'admin';
             }
 
-            let user = new User(fullNameInput, emailInput, passwordInput, phoneInput, role);
+            let user = new User(fullNameInput, emailInput, passwordInput, phoneInput, role, 'Active');
             await user.register();
             await user.role(role);
         } finally {
