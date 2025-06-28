@@ -1,8 +1,0 @@
-[33mc9894f7[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m added user status and fixed book an appointment button in home section
-[33mec850d1[m Booking Appointment Fixed
-[33me373278[m fixed appointment list and add patient list with filter
-[33ma9c0ccc[m Added appointment list in admin.script
-[33m53a6bf2[m added error handling for creating record for patient if not exist in record during booking
-[33m3c82440[m fixed appointments and doctor select fetch table
-[33m94263ba[m added classes
-[33m625af72[m initial commit

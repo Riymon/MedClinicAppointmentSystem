@@ -1,7 +1,7 @@
-import Appointments from './classes/appointments.js';
-import User from './classes/users.js';
-import supabase from './classes/database.js';
-import Patient from './classes/patient.js';
+import Appointments from './classes2/appointments.js';
+import User from './classes2/users.js';
+import supabase from './classes2/database.js';
+import Patient from './classes2/patient.js';
 // Import Supabase client
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -246,9 +246,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             submitBtn.disabled = false;
         }
 }
-    // Initialize the page
     init();
-    
+    // Initialize the page
     function init() {
         // Set current date as min date for appointment
         const today = new Date().toISOString().split('T')[0];
@@ -708,7 +707,7 @@ function formatDateForPostgres(date) {
         });
 
         // Add event listeners
-        setupAppointmentEventListeners();
+        showAppointmentDetails();
 
     } catch (error) {
         console.error('Error rendering appointments:', error);
@@ -721,21 +720,25 @@ function formatDateForPostgres(date) {
     }
 }
 
-function setupAppointmentEventListeners() {
-    document.querySelectorAll('.cancel-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const appointmentId = this.getAttribute('data-id').textContent;
-            cancelAppointment(appointmentId);
-        });
-    });
-    
-    document.querySelectorAll('.details-btn').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const appointmentId = this.getAttribute('data-id');
-            showAppointmentDetails(appointmentId);
-        });
-    });
+document.getElementById('appointments-list')?.addEventListener('click', function(e) {
+    // Cancel button
+    const cancelBtn = e.target.closest('.cancel-btn');
+    if (cancelBtn) {
+        const appointment_id = cancelBtn.getAttribute('data-id');
+        console.log('Appointment ID:', appointment_id);
+        cancelAppointment(appointment_id);
+        return;
     }
+    // Details button
+    const detailsBtn = e.target.closest('.details-btn');
+    if (detailsBtn) {
+        const appointment_id = detailsBtn.getAttribute('data-id');
+        showAppointmentDetails(appointment_id);
+        return;
+    }
+});
+
+
     
     function showAppointmentDetails(appointmentId) {
         // appointments should be the latest array used in renderAppointments
@@ -781,27 +784,19 @@ function setupAppointmentEventListeners() {
         }
 }
 
-async function cancelAppointment(appointmentId) {
+async function cancelAppointment(appointment_id) {
     if (!confirm('Are you sure you want to cancel this appointment?')) return;
 
     try {
         const app = new Appointments();
-        const result = await app.cancel(appointmentId);
+        const result = await app.cancel(appointment_id);
         
         if (result.error) {
             throw new Error(result.error);
         }
 
         // Update UI after successful cancellation
-        const appointmentIndex = appointments.findIndex(
-            app => String(app.id) === String(appointmentId)
-        );
-        
-        if (appointmentIndex !== -1) {
-            appointments[appointmentIndex].status = 'cancelled';
-            renderAppointments();
-            alert('Appointment cancelled successfully!');
-        }
+        console.log('Appointment cancelled successfully:', result);
     } catch (error) {
         console.error('Cancellation failed:', error);
         alert('Failed to cancel appointment: ' + error.message);

@@ -151,24 +151,22 @@ async checkDoctorAvailability(doctorId, requestedDate) {
 
         return detailsModal;
     }
-    async cancel(appointment_id) {
-        console.log('Attempting to cancel appointment:', appointmentId);
-        console.log('Supabase client:', supabase);  // Should show initialized client
-        console.log('supabase.from exists:', !!supabase.from);  // Should be true
-        try {
-            appointment_id = this.data.appointment_id;
-            const { data: user, error } = await supabase
-                .from('appointments')
-                .update({ status: 'cancelled', cancelled_by: 'User itself' })
-                .eq('appointment_id', appointment_id)
-                
-        
+async cancel(appointment_id) {
+    console.log('Attempting to cancel appointment:', appointment_id);
+    try {
+        const { data, error } = await supabase
+            .from('appointments')
+            .update({ status: 'cancelled', cancelled_by: 'User itself' })
+            .eq('appointment_id', appointment_id);
+
+        if (error) throw error;
         return { success: true, data };
-        } catch (error) {
-            console.error('Error cancelling appointment:', error);
-            return { error: error.message };
-        }
+    } catch (error) {
+        console.error('Error cancelling appointment:', error);
+        return { error: error.message };
     }
+}
+
 async getListAppointments(search, selection, status, date) {
     try {
         // Initialize base query

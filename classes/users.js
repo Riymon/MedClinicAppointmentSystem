@@ -75,13 +75,14 @@ export default class User {
             return null;
         }
     }
-async login(email, password) {
+async login(email, password, status) {
     try {
         const { data, error } = await supabase
             .from('user')
             .select('email, password, role, status')
             .eq('email', email)
             .eq('password', password)
+            .eq('status', status)
             .single();
 
         if (error || !data) {
