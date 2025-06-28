@@ -76,24 +76,39 @@ export default class User {
         }
     }
 async login(email, password, status) {
-    try {
-        const { data, error } = await supabase
-            .from('user')
-            .select('email, password, role, status')
-            .eq('email', email)
-            .eq('password', password)
-            .eq('status', status)
-            .single();
+        try {
+            const { data, error } = await supabase
+                .from('user')
+                .select('*')  // Select all fields to get the status
+                .eq('email', email)
+                .eq('password', password)
+                .single();
 
-        if (error || !data) {
+            if (error || !data) {
+                return null;
+            }
+
+            // Check if account is banned
+            if (data.status === 'Banned') {
+                return { 
+                    email: data.email,
+                    status: 'Banned',
+                    role: data.role 
+                };
+            }
+
+            // Check if status matches (Active/Inactive)
+            if (status && data.status !== status) {
+                return null;
+            }
+
+            this.data = { ...data };
+            return data;
+        } catch (err) {
             return null;
         }
-        this.data = { ...data };
-        return data;
-    } catch (err) {
-        return null;
     }
-}
+
  async isBanned() {
         const detailsHtml = `
             <h3>Account Problem</h3>

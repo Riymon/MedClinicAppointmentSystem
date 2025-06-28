@@ -274,14 +274,13 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Enhanced login functionality
     async function handleLoginSubmit(e) {
         e.preventDefault();
-        
         const email = document.getElementById('login-email').value.trim();
         const password = document.getElementById('login-password').value;
         const submitBtn = e.target.querySelector('button[type="submit"]');
         
         // Validate inputs
         if (!email || !password) {
-            alert('Please enter both email and password', 'danger');
+            alert('Please enter both email and password');
             return;
         }
 
@@ -300,9 +299,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 throw new Error('Invalid email or password');
             }
 
+            // Handle banned account
             if (loginResult.status === 'Banned') {
                 await user.isBanned();
-                throw new Error('Your account has been banned.');
+                return; // Exit without throwing error
             }
 
             // Store user data
@@ -320,11 +320,14 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             // Close modal and show success
             if (loginModal) loginModal.classList.remove('active');
+            alert('Login successful!');
 
         } catch (error) {
             console.error('Login error:', error);
-            alert(error.message || 'Login failed. Please try again.', 'danger');
-            document.getElementById('login-password').value = '';
+            if (error.message !== 'banned') { // Only show alert if not banned
+                alert(error.message || 'Login failed. Please try again.');
+                document.getElementById('login-password').value = '';
+            }
         } finally {
             submitBtn.disabled = false;
             submitBtn.textContent = originalBtnText;
@@ -514,7 +517,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         if (!departmentSelect.value || !doctors_select.value || !dateInput.value || 
             !nameInput.value || !phoneInput.value) {
-            showAlert('Please fill in all required fields', 'warning');
+            alert('Please fill in all required fields', 'warning');
             return;
         }
 
@@ -591,7 +594,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         } catch (error) {
             console.error('Booking failed:', error);
-            showAlert('Failed to book appointment: ' + error.message, 'danger');
+            alert('Failed to book appointment: ' + error.message, 'danger');
         }
     }
 
@@ -752,11 +755,11 @@ document.addEventListener('DOMContentLoaded', async function() {
             if (appointmentIndex !== -1) {
                 appointments[appointmentIndex].status = 'cancelled';
                 renderAppointments();
-                showAlert('Appointment cancelled successfully!', 'success');
+                alert('Appointment cancelled successfully!', 'success');
             }
         } catch (error) {
             console.error('Cancellation failed:', error);
-            showAlert('Failed to cancel appointment: ' + error.message, 'danger');
+            alert('Failed to cancel appointment: ' + error.message, 'danger');
         }
     }
 
@@ -805,7 +808,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     function handleAdminLogin(username, password) {
         if (!username || !password) {
-            showAlert('Please enter both username and password', 'warning');
+            alert('Please enter both username and password', 'warning');
             return;
         }
 
@@ -821,7 +824,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             document.getElementById('logout-btn').addEventListener('click', logoutAdmin);
             initDashboard();
         } else {
-            showAlert('Invalid admin credentials', 'danger');
+            alert('Invalid admin credentials', 'danger');
         }
     }
 
