@@ -684,7 +684,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     function setupAppointmentEventListeners() {
         document.querySelectorAll('.cancel-btn').forEach(btn => {
             btn.addEventListener('click', function() {
-                const appointmentId = this.getAttribute('data-id').textContent;
+                const appointmentId = this.getAttribute('data-id');
                 cancelAppointment(appointmentId);
             });
         });
@@ -738,30 +738,38 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     async function cancelAppointment(appointmentId) {
-        if (!confirm('Are you sure you want to cancel this appointment?')) return;
-
-        try {
-            const app = new Appointments();
-            const result = await app.cancel(appointmentId);
-            
-            if (result.error) {
-                throw new Error(result.error);
-            }
-
-            const appointmentIndex = appointments.findIndex(
-                app => String(app.id) === String(appointmentId)
-            );
-            
-            if (appointmentIndex !== -1) {
-                appointments[appointmentIndex].status = 'cancelled';
-                renderAppointments();
-                alert('Appointment cancelled successfully!', 'success');
-            }
-        } catch (error) {
-            console.error('Cancellation failed:', error);
-            alert('Failed to cancel appointment: ' + error.message, 'danger');
-        }
+    if (!appointmentId || appointmentId === 'undefined') {
+        alert('Invalid appointment ID');
+        return;
     }
+    
+    if (!confirm('Are you sure you want to cancel this appointment?')) return;
+
+    try {
+        const userData = sessionStorage.getItem('loggedInUser');
+        const app = new Appointments();
+        const user = JSON.parse(userData);
+        const user_id = user.user_id;
+        const result = await app.cancel(appointmentId, user_id);
+        
+        if (result.error) {
+            throw new Error(result.error);
+        }
+
+        const appointmentIndex = appointments.findIndex(
+            app => String(app.id) === String(appointmentId)
+        );
+        
+        if (appointmentIndex !== -1) {
+            appointments[appointmentIndex].status = 'cancelled';
+            renderAppointments();
+            alert('Appointment cancelled successfully!', 'success');
+        }
+    } catch (error) {
+        console.error('Cancellation failed:', error);
+        alert('Failed to cancel appointment: ' + error.message, 'danger');
+    }
+}
 
     function findDoctorByName(name) {
         for (const department in doctors_data) {

@@ -151,12 +151,14 @@ async checkDoctorAvailability(doctorId, requestedDate) {
 
         return detailsModal;
     }
-async cancel(appointment_id) {
+async cancel(appointment_id, user_id) {
     console.log('Attempting to cancel appointment:', appointment_id);
     try {
         const { data, error } = await supabase
             .from('appointments')
-            .update({ status: 'cancelled', cancelled_by: 'User itself' })
+            .update({ status: 'cancelled', updated_at: new Date().toISOString(),
+                cancelled_by: user_id
+            })
             .eq('appointment_id', appointment_id);
 
         if (error) throw error;
