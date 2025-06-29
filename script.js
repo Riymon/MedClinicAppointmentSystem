@@ -527,6 +527,18 @@ document.addEventListener('DOMContentLoaded', async function() {
                 throw new Error('User not found. Please register first.');
             }
 
+            // First check doctor availability before proceeding
+            const app = new Appointments();
+            const availability = await app.checkDoctorAvailability(
+                Number(doctors_select.value), 
+                dateInput.value
+            );
+
+            if (!availability.available) {
+                app.showLimitedAppointmentOnline();
+                throw new Error(availability.reason || "Doctor is not available at the selected time");
+            }
+
             const newPatient = new Patient(
                 user_id,
                 nameInput.value,
@@ -557,7 +569,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 status: "upcoming"
             };
 
-            const app = new Appointments(
+            const appointment = new Appointments(
                 appointmentData.patient_id, 
                 appointmentData.user_id,
                 appointmentData.doctor_id,
@@ -567,7 +579,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 appointmentData.status
             );
             
-            const result = await app.insertData();
+            const result = await appointment.insertData();
             
             if (result.error) {
                 throw new Error(result.error);
