@@ -35,13 +35,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     const viewAppointmentsBtn = document.getElementById('view-appointments');
     const patientLoginBtn = document.getElementById('patient-login-btn');
     const reason = document.getElementById('reason').value;
-    const adminUser = [{username: 'user@wecare.com', password: 'password123'},
-    {username: 'user1@wecare.com', password: 'password123'}];
     const nav = document.querySelector('nav ul');
     const ADMIN_PIN = "123456";
     let doctors_data = {};
     let appointmentsChart = null;
-    const adminCredentials = { username: "admin", password: "admin123" };
     let calendar = null;
     let appointments = {};
 
@@ -144,7 +141,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     )
                 `)
                 .eq('staff_type', 'Doctor')
-                .order('full_name', { ascending: true });
+                .order('full_name', { ascending: false });
 
             if (error) throw error;
             if (!data || data.length === 0) {
@@ -154,7 +151,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             
             const organizedData = {};
             data.forEach(doc => {
-                const specialization = doc.specialization?.trim().toLowerCase() || 'general';
+                const specialization = doc.specialization?.trim().toLowerCase() || 'general_medicine';
                 
                 if (!organizedData[specialization]) {
                     organizedData[specialization] = [];
@@ -293,7 +290,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             console.log('Attempting login with:', email);
             
             const user = new User();
-            const loginResult = await user.login(email, password, 'Active');
+            const loginResult = await user.login(email, password);
             
             if (!loginResult) {
                 throw new Error('Invalid email or password');

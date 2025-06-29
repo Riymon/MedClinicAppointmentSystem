@@ -24,7 +24,7 @@ export default class User {
                 password: this.data.password,
                 contact_no: this.data.contact_no,
                 role: this.data.role,
-                status: this.data.status
+                status: 'Active'
             }]);
 
              
